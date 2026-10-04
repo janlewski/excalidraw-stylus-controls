@@ -47,6 +47,16 @@ export class SettingsTab extends PluginSettingTab {
           .setValue(this.plugin.settings.debugMode)
           .onChange(async (value) => this.plugin.updateSettings({ debugMode: value }))
       );
+    new Setting(containerEl)
+      .setName("Debug overlay")
+      .setDesc(
+        "Shows the latest pen event and stylus state in the Excalidraw view. Requires debug logging."
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.debugOverlay)
+          .onChange(async (value) => this.plugin.updateSettings({ debugOverlay: value }))
+      );
   }
   private action(
     name: string,

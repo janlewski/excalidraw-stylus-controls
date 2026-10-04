@@ -1,6 +1,7 @@
 import type {
   GestureEffect,
   GestureSettings,
+  GestureStateSnapshot,
   NormalizedStylusEvent,
   Point,
   Scheduler,
@@ -74,6 +75,23 @@ export class StylusGestureMachine {
     this.temporaryToolActive = false;
     this.cancelPress();
     return effects;
+  }
+
+  snapshot(): GestureStateSnapshot {
+    return {
+      barrelButtonHeld: this.barrelButtonHeld,
+      penContact: this.penContact,
+      gestureConsumed: this.consumed,
+      temporaryToolActive: this.temporaryToolActive,
+      hoverGestureMoved: this.moved,
+      longPressFired: this.holdFired,
+      activePointerId: this.activePointerId,
+    };
+  }
+
+  /** The controller calls this when the optional Excalidraw bridge rejects a start request. */
+  temporaryToolDidNotStart(): void {
+    this.temporaryToolActive = false;
   }
 
   private startPress(event: NormalizedStylusEvent): void {

@@ -21,7 +21,10 @@ export class ExcalidrawBridge {
   startTemporaryEraser(): ActiveToolSnapshot | null {
     const api = this.getApi();
     const tool = api?.getAppState?.().activeTool;
-    if (!api?.setActiveTool || !tool) return null;
+    if (!api?.setActiveTool || !tool) {
+      this.unsupported("Temporary eraser requires a compatible Excalidraw view.");
+      return null;
+    }
     api.setActiveTool({ type: "eraser" });
     return { ...tool };
   }
@@ -33,7 +36,10 @@ export class ExcalidrawBridge {
   }
   setTool(type: string): boolean {
     const api = this.getApi();
-    if (!api?.setActiveTool) return false;
+    if (!api?.setActiveTool) {
+      this.unsupported("Tool switching requires a compatible Excalidraw view.");
+      return false;
+    }
     api.setActiveTool({ type });
     return true;
   }

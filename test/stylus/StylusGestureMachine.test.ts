@@ -118,4 +118,26 @@ describe("StylusGestureMachine", () => {
     machine.handle(event("down", 1));
     expect(machine.handle(event("cancel", 0))).toEqual([{ type: "temporary-tool-end" }]);
   });
+  it("exposes a serializable state snapshot for diagnostics", () => {
+    const { machine } = create();
+    machine.handle(event("move", 1));
+    machine.handle(event("down", 1));
+    expect(machine.snapshot()).toEqual({
+      barrelButtonHeld: true,
+      penContact: true,
+      gestureConsumed: true,
+      temporaryToolActive: true,
+      hoverGestureMoved: false,
+      longPressFired: false,
+      activePointerId: 1,
+    });
+  });
+  it("clears temporary state when the controller cannot start the bridge action", () => {
+    const { machine } = create();
+    machine.handle(event("move", 1));
+    machine.handle(event("down", 1));
+    machine.temporaryToolDidNotStart();
+    expect(machine.snapshot().temporaryToolActive).toBe(false);
+    expect(machine.handle(event("up", 0))).toEqual([]);
+  });
 });

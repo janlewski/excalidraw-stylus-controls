@@ -32,6 +32,16 @@ export interface GestureSettings {
   movementThresholdPx: number;
 }
 
+export interface GestureStateSnapshot {
+  barrelButtonHeld: boolean;
+  penContact: boolean;
+  gestureConsumed: boolean;
+  temporaryToolActive: boolean;
+  hoverGestureMoved: boolean;
+  longPressFired: boolean;
+  activePointerId: number | null;
+}
+
 export interface Scheduler {
   setTimeout(callback: () => void, delayMs: number): unknown;
   clearTimeout(handle: unknown): void;

@@ -1,10 +1,11 @@
 import type { WorkspaceLeaf } from "obsidian";
 import type { ExcalidrawBridge, ActiveToolSnapshot } from "../excalidraw/ExcalidrawBridge";
 import type { DebugLogger } from "../debug/DebugLogger";
+import { DebugOverlay } from "../debug/DebugOverlay";
 import type { StylusControlsSettings } from "../settings/settings";
 import { normalizePointerEvent } from "./normalizePointerEvent";
 import { StylusGestureMachine } from "./StylusGestureMachine";
-import type { GestureEffect, Point, Scheduler } from "./types";
+import type { GestureEffect, NormalizedStylusEvent, Point, Scheduler } from "./types";
 
 export type ActionHandler = (
   action: "menu" | "copy" | "paste" | "none",
@@ -17,6 +18,8 @@ export class StylusController {
   private savedTool: ActiveToolSnapshot | null = null;
   private disposed = false;
   private readonly listeners: Array<[keyof HTMLElementEventMap, EventListener]> = [];
+  private readonly overlay: DebugOverlay;
+  private latestEvent: NormalizedStylusEvent | null = null;
 
   constructor(
     private readonly leaf: WorkspaceLeaf,
@@ -28,6 +31,10 @@ export class StylusController {
   ) {
     this.machine = new StylusGestureMachine(this.gestureSettings(), scheduler);
     this.machine.setEffectSink((effect) => this.applyEffect(effect));
+    this.overlay = new DebugOverlay(
+      this.leaf.view.containerEl,
+      () => this.settings().debugMode && this.settings().debugOverlay
+    );
   }
 
   attach(): void {
@@ -52,6 +59,7 @@ export class StylusController {
       this.leaf.view.containerEl.removeEventListener(type, listener, true);
     this.listeners.length = 0;
     for (const effect of this.machine.dispose()) this.applyEffect(effect);
+    this.overlay.close();
   }
   getTrace(): string {
     return this.debug.exportTrace();
@@ -63,17 +71,24 @@ export class StylusController {
       raw,
       this.leaf.view.containerEl.contains(raw.target as Node)
     );
+    this.latestEvent = event;
     this.debug.event(event);
-    for (const effect of this.machine.handle(event)) {
+    const effects = this.machine.handle(event);
+    if (effects.length === 0) this.overlay.update(event, this.machine.snapshot());
+    for (const effect of effects) {
       if (effect.type === "suppress-context-menu") raw.preventDefault();
       this.applyEffect(effect);
     }
   }
 
   private applyEffect(effect: GestureEffect): void {
+    this.debug.message(`effect: ${effect.type}`);
     switch (effect.type) {
       case "temporary-tool-start":
-        if (!this.savedTool) this.savedTool = this.bridge.startTemporaryEraser();
+        if (!this.savedTool) {
+          this.savedTool = this.bridge.startTemporaryEraser();
+          if (!this.savedTool) this.machine.temporaryToolDidNotStart();
+        }
         break;
       case "temporary-tool-end":
         if (this.savedTool) this.bridge.restoreTool(this.savedTool);
@@ -91,6 +106,7 @@ export class StylusController {
       default:
         break;
     }
+    if (this.latestEvent) this.overlay.update(this.latestEvent, this.machine.snapshot(), effect);
   }
 
   private gestureSettings() {
