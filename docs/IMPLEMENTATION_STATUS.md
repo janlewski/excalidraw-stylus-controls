@@ -34,15 +34,15 @@ Legend: `[x]` complete, `[-]` in progress, `[ ]` not started, `[~]` deferred.
 - [x] Per-Excalidraw-view capture-phase Pointer Event watcher.
 - [x] Normalized raw-event format: event kind, pointer type, buttons, button,
       pressure, coordinates, timestamp, contact classification, and state snapshot.
-- [-] Debug setting, rate-limited console logger, and copyable event trace.
-  Overlay remains to be implemented.
-  copyable event trace for device reports.
+- [x] Debug setting, rate-limited console logger, optional per-view overlay, and
+      copyable event trace for device reports.
 - [ ] Hardware trace fixtures for supported Samsung/Obsidian versions.
 
 ## Excalidraw integration
 
 - [ ] Leaf-aware `ExcalidrawBridge` with public/API-compatible access only.
-- [ ] Graceful missing-plugin and incompatible-API notices.
+- [-] Graceful missing-plugin and incompatible-API notices for temporary-tool
+  and menu actions. Copy/paste API support remains to be implemented.
 - [ ] Capability checks for API acquisition, active-tool get/set, selection, and
       scene updates.
 - [ ] Capture and restore the full active-tool value where supported.
