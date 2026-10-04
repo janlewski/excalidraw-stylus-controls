@@ -54,6 +54,6 @@
 - When asked to create a commit, use the repository's configured identity and
   append this final message trailer, after any other trailers:
 
-    `Assisted-by: Codex`
+  `Assisted-by: Codex`
 
 - Do not create a commit unless the user explicitly asks for one.
