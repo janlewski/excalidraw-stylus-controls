@@ -8,32 +8,32 @@ Legend: `[x]` complete, `[-]` in progress, `[ ]` not started, `[~]` deferred.
 ## Product decisions
 
 - [x] Plugin name and ID: **Excalidraw Stylus Controls** /
-  `excalidraw-stylus-controls`.
+      `excalidraw-stylus-controls`.
 - [x] Primary package manager: `pnpm` (commit `pnpm-lock.yaml`; do not maintain
-  `package-lock.json`).
+      `package-lock.json`).
 - [x] Copy/paste for 0.1 uses a private, in-memory Excalidraw-element clipboard.
-  It is intentionally not the Android/system clipboard.
+      It is intentionally not the Android/system clipboard.
 - [x] The reference project is behavioural research only. No source has been
-  copied into this repository.
+      copied into this repository.
 - [x] Samsung S Pen support is based on known Android WebView PointerEvent
-  behaviour and requires physical-device verification before release.
+      behaviour and requires physical-device verification before release.
 
 ## Repository and delivery hygiene
 
 - [x] Agent working rules and commit attribution policy ([AGENTS.md](AGENTS.md)).
 - [x] Plugin scaffold: manifest, package metadata, TypeScript, esbuild, styles,
-  version metadata, README, MIT license.
+      version metadata, README, MIT license.
 - [x] `pnpm install`, `pnpm dev`, and `pnpm build` workflows.
 - [x] Production outputs: `main.js`, `manifest.json`, and `styles.css`.
 - [ ] README: controls table, requirements, compatibility, install steps,
-  hardware-validation caveat, and attribution.
+      hardware-validation caveat, and attribution.
 - [ ] Release verification and generated-bundle inspection.
 
 ## Diagnostics first
 
 - [x] Per-Excalidraw-view capture-phase Pointer Event watcher.
 - [x] Normalized raw-event format: event kind, pointer type, buttons, button,
-  pressure, coordinates, timestamp, contact classification, and state snapshot.
+      pressure, coordinates, timestamp, contact classification, and state snapshot.
 - [-] Debug setting, rate-limited console logger, and copyable event trace.
   Overlay remains to be implemented.
   copyable event trace for device reports.
@@ -44,7 +44,7 @@ Legend: `[x]` complete, `[-]` in progress, `[ ]` not started, `[~]` deferred.
 - [ ] Leaf-aware `ExcalidrawBridge` with public/API-compatible access only.
 - [ ] Graceful missing-plugin and incompatible-API notices.
 - [ ] Capability checks for API acquisition, active-tool get/set, selection, and
-  scene updates.
+      scene updates.
 - [ ] Capture and restore the full active-tool value where supported.
 - [ ] Internal selection copy and paste at the stylus position.
 
@@ -66,7 +66,7 @@ Legend: `[x]` complete, `[-]` in progress, `[ ]` not started, `[~]` deferred.
 - [ ] Repeated strokes during one held physical button each enter/exit eraser.
 - [ ] A consumed physical hold triggers no action upon release.
 - [ ] Cleanup restores a temporary tool on pointer cancel, watcher/view disposal,
-  view closure, and plugin unload.
+      view closure, and plugin unload.
 - [ ] Tap, double-tap, hold, and contact actions map independently to settings.
 
 ## UI and settings
@@ -75,7 +75,7 @@ Legend: `[x]` complete, `[-]` in progress, `[ ]` not started, `[~]` deferred.
 - [ ] Advanced timing: double-tap interval, long-press delay, movement threshold.
 - [ ] Diagnostics: debug logging and optional event overlay.
 - [ ] Compact anchored stylus menu with large targets, viewport clamping, and
-  appropriate dismissal.
+      appropriate dismissal.
 - [~] Object tap menu and object workflows. Defer until 0.2; do not expose a
   non-functional setting in 0.1.
 
@@ -84,12 +84,12 @@ Legend: `[x]` complete, `[-]` in progress, `[ ]` not started, `[~]` deferred.
 - [-] Unit tests: normal tap, double tap, long hold, temporary eraser, repeated
   erasing under one hold, contact before hold timeout, and pointer cancel.
 - [ ] Compatibility tests: mouse unaffected; normal pen drawing unaffected;
-  no-barrel-button styluses degrade gracefully.
+      no-barrel-button styluses degrade gracefully.
 - [ ] Lifecycle/multi-view tests: unload restoration, listener disposal, and
-  independent controller state per Excalidraw pane.
+      independent controller state per Excalidraw pane.
 - [ ] Manual Samsung device matrix with exported raw pointer traces.
 - [ ] Validate AC1–AC13 that remain in 0.1 scope; object-tap-specific coverage
-  moves with that feature to 0.2.
+      moves with that feature to 0.2.
 
 ## Deliberately deferred beyond 0.1
 

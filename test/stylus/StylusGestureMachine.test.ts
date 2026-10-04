@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { StylusGestureMachine } from "../../src/stylus/StylusGestureMachine";
-import type {
-    GestureEffect,
-    NormalizedStylusEvent,
-    Scheduler,
-} from "../../src/stylus/types";
+import type { GestureEffect, NormalizedStylusEvent, Scheduler } from "../../src/stylus/types";
 
 class FakeScheduler implements Scheduler {
     now = 0;
@@ -71,9 +67,7 @@ describe("StylusGestureMachine", () => {
         scheduler.advance(299);
         expect(effects).toEqual([]);
         scheduler.advance(1);
-        expect(effects).toEqual([
-            { type: "button-tap", point: { x: 10, y: 12 } },
-        ]);
+        expect(effects).toEqual([{ type: "button-tap", point: { x: 10, y: 12 } }]);
     });
     it("resolves two hover presses as a double tap", () => {
         const { machine, effects } = create();
@@ -90,9 +84,7 @@ describe("StylusGestureMachine", () => {
         machine.handle(event("move", 1));
         scheduler.advance(450);
         machine.handle(event("move", 0));
-        expect(effects).toEqual([
-            { type: "button-hold", point: { x: 10, y: 12 } },
-        ]);
+        expect(effects).toEqual([{ type: "button-hold", point: { x: 10, y: 12 } }]);
     });
     it("starts eraser on contact, ends it on lift, and consumes release", () => {
         const { machine } = create();
@@ -100,9 +92,7 @@ describe("StylusGestureMachine", () => {
         expect(machine.handle(event("down", 1))).toEqual([
             { type: "temporary-tool-start", point: { x: 10, y: 12 } },
         ]);
-        expect(machine.handle(event("up", 0))).toEqual([
-            { type: "temporary-tool-end" },
-        ]);
+        expect(machine.handle(event("up", 0))).toEqual([{ type: "temporary-tool-end" }]);
         expect(machine.handle(event("move", 0))).toEqual([]);
     });
     it("supports repeated contact strokes in one held press", () => {
@@ -111,15 +101,11 @@ describe("StylusGestureMachine", () => {
         expect(machine.handle(event("down", 1)).map((x) => x.type)).toEqual([
             "temporary-tool-start",
         ]);
-        expect(machine.handle(event("up", 0)).map((x) => x.type)).toEqual([
-            "temporary-tool-end",
-        ]);
+        expect(machine.handle(event("up", 0)).map((x) => x.type)).toEqual(["temporary-tool-end"]);
         expect(machine.handle(event("down", 1)).map((x) => x.type)).toEqual([
             "temporary-tool-start",
         ]);
-        expect(machine.handle(event("up", 0)).map((x) => x.type)).toEqual([
-            "temporary-tool-end",
-        ]);
+        expect(machine.handle(event("up", 0)).map((x) => x.type)).toEqual(["temporary-tool-end"]);
     });
     it("cancels hold when contact arrives first and ignores mouse/touch", () => {
         const { machine, scheduler, effects } = create();
@@ -134,8 +120,6 @@ describe("StylusGestureMachine", () => {
         const { machine } = create();
         machine.handle(event("move", 1));
         machine.handle(event("down", 1));
-        expect(machine.handle(event("cancel", 0))).toEqual([
-            { type: "temporary-tool-end" },
-        ]);
+        expect(machine.handle(event("cancel", 0))).toEqual([{ type: "temporary-tool-end" }]);
     });
 });
