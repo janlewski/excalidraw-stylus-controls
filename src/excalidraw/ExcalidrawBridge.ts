@@ -29,7 +29,7 @@ export class ExcalidrawBridge {
     return true;
   }
   copySelectedElements(): void { this.unsupported("Copy requires a compatible Excalidraw API."); }
-  pasteAt(_point: Point): void { this.unsupported("Paste requires a compatible Excalidraw API."); }
+  pasteAt(point: Point): void { void point; this.unsupported("Paste requires a compatible Excalidraw API."); }
 
   private getApi(): ImperativeApi | null {
     // Excalidraw exposes no stable Community Plugin API for this path. Keep this

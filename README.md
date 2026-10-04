@@ -21,5 +21,6 @@ project has not yet been physically validated on a Samsung device.
 
 ```sh
 pnpm install
+pnpm lint
 pnpm build
 ```
