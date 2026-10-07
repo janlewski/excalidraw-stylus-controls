@@ -19,7 +19,7 @@ export class StylusViewRegistry {
         const debug = new DebugLogger(() => this.settings().debugMode);
         const controller = new StylusController(
           leaf,
-          new ExcalidrawBridge(this.app, leaf),
+          new ExcalidrawBridge(leaf),
           this.settings,
           debug,
           this.actionHandler
