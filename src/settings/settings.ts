@@ -8,7 +8,6 @@ export interface StylusControlsSettings {
   doubleTapMs: number;
   longPressMs: number;
   movementThresholdPx: number;
-  cleanupStrayDot: boolean;
   debugMode: boolean;
   debugOverlay: boolean;
 }
@@ -21,7 +20,6 @@ export const DEFAULT_SETTINGS: StylusControlsSettings = {
   doubleTapMs: 300,
   longPressMs: 450,
   movementThresholdPx: 8,
-  cleanupStrayDot: true,
   debugMode: false,
   debugOverlay: false,
 };
@@ -46,7 +44,6 @@ export function normalizeSettings(value: Partial<StylusControlsSettings>): Stylu
     doubleTapMs: number(value.doubleTapMs, 300, 100, 1000),
     longPressMs: number(value.longPressMs, 450, 150, 2000),
     movementThresholdPx: number(value.movementThresholdPx, 8, 1, 100),
-    cleanupStrayDot: value.cleanupStrayDot !== false,
     debugMode: value.debugMode === true,
     debugOverlay: value.debugOverlay === true,
   };
