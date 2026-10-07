@@ -11,8 +11,8 @@ Legend: `[x]` complete, `[-]` in progress, `[ ]` not started, `[~]` deferred.
       `excalidraw-stylus-controls`.
 - [x] Primary package manager: `pnpm` (commit `pnpm-lock.yaml`; do not maintain
       `package-lock.json`).
-- [x] Copy/paste for 0.1 uses a private, in-memory Excalidraw-element clipboard.
-      It is intentionally not the Android/system clipboard.
+- [~] Internal, in-memory selection copy/paste is deferred. It will never be
+  represented as Android or system clipboard support.
 - [x] The reference project is behavioural research only. No source has been
       copied into this repository.
 - [x] Samsung S Pen support is based on known Android WebView PointerEvent
@@ -24,6 +24,8 @@ Legend: `[x]` complete, `[-]` in progress, `[ ]` not started, `[~]` deferred.
 - [x] Plugin scaffold: manifest, package metadata, TypeScript, esbuild, styles,
       version metadata, README, MIT license.
 - [x] `pnpm install`, `pnpm dev`, and `pnpm build` workflows.
+- [x] Pull-request quality gates: format, lint, typecheck, tests, and bundle
+      each run as an independent GitHub Actions check.
 - [x] Production outputs: `main.js`, `manifest.json`, and `styles.css`.
 - [x] README: controls table, requirements, compatibility, install steps,
       hardware-validation caveat, and attribution.
@@ -40,12 +42,13 @@ Legend: `[x]` complete, `[-]` in progress, `[ ]` not started, `[~]` deferred.
 
 ## Excalidraw integration
 
-- [ ] Leaf-aware `ExcalidrawBridge` with public/API-compatible access only.
-- [-] Graceful missing-plugin and incompatible-API notices for temporary-tool
-  and menu actions. Copy/paste API support remains to be implemented.
-- [ ] Capability checks for API acquisition, active-tool get/set, selection, and
-      scene updates.
-- [ ] Capture and restore the full active-tool value where supported.
+- [-] Leaf-aware `ExcalidrawBridge` with an isolated optional API probe. A stable
+  public plugin-to-plugin acquisition API remains unavailable.
+- [x] Graceful, once-per-view missing/incompatible-API notices for temporary-tool
+      and menu actions. Copy/paste API support remains deliberately deferred.
+- [-] Capability checks for API acquisition and active-tool get/set. Selection
+  and scene-update capabilities remain deferred with clipboard work.
+- [x] Capture and restore the full active-tool value where supported.
 - [ ] Internal selection copy and paste at the stylus position.
 
 ## Gesture state machine
@@ -72,10 +75,10 @@ Legend: `[x]` complete, `[-]` in progress, `[ ]` not started, `[~]` deferred.
 
 ## UI and settings
 
-- [ ] “S Pen side button” mappings: tap, double tap, hold, and pen contact.
-- [ ] Advanced timing: double-tap interval, long-press delay, movement threshold.
-- [ ] Diagnostics: debug logging and optional event overlay.
-- [ ] Compact anchored stylus menu with large targets, viewport clamping, and
+- [x] “S Pen side button” mappings: tap, double tap, hold, and pen contact.
+- [x] Advanced timing: double-tap interval, long-press delay, movement threshold.
+- [x] Diagnostics: debug logging and optional event overlay.
+- [x] Compact anchored stylus menu with large targets, viewport clamping, and
       appropriate dismissal.
 - [~] Object tap menu and object workflows. Defer until 0.2; do not expose a
   non-functional setting in 0.1.
