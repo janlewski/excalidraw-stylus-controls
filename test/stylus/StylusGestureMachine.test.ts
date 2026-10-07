@@ -30,7 +30,8 @@ class FakeScheduler implements Scheduler {
 const event = (
   kind: NormalizedStylusEvent["kind"],
   buttons: number,
-  pointerType = "pen"
+  pointerType = "pen",
+  point = { x: 10, y: 12 }
 ): NormalizedStylusEvent => ({
   kind,
   buttons,
@@ -38,8 +39,8 @@ const event = (
   pointerId: 1,
   button: 0,
   pressure: 0,
-  x: 10,
-  y: 12,
+  x: point.x,
+  y: point.y,
   timestamp: 0,
   isCanvasTarget: true,
 });
@@ -117,6 +118,40 @@ describe("StylusGestureMachine", () => {
     machine.handle(event("move", 1));
     machine.handle(event("down", 1));
     expect(machine.handle(event("cancel", 0))).toEqual([{ type: "temporary-tool-end" }]);
+  });
+  it("does not turn a moved hover press into a tap or hold", () => {
+    const { machine, scheduler, effects } = create();
+    machine.handle(event("move", 1));
+    machine.handle(event("move", 1, "pen", { x: 19, y: 12 }));
+    machine.handle(event("move", 0, "pen", { x: 19, y: 12 }));
+    scheduler.advance(500);
+    expect(effects).toEqual([]);
+  });
+  it("suppresses context menus only for a recognized eraser interaction", () => {
+    const { machine } = create();
+    expect(machine.handle(event("contextmenu", 0))).toEqual([]);
+    machine.handle(event("move", 1));
+    machine.handle(event("down", 1));
+    expect(machine.handle(event("contextmenu", 1))).toEqual([{ type: "suppress-context-menu" }]);
+    machine.handle(event("up", 0));
+    expect(machine.handle(event("contextmenu", 0))).toEqual([]);
+  });
+  it("ends an active temporary tool and clears timers when disposed", () => {
+    const { machine, scheduler, effects } = create();
+    machine.handle(event("move", 1));
+    machine.handle(event("down", 1));
+    expect(machine.dispose()).toEqual([{ type: "temporary-tool-end" }]);
+    scheduler.advance(500);
+    expect(effects).toEqual([]);
+    expect(machine.snapshot()).toEqual({
+      barrelButtonHeld: false,
+      penContact: false,
+      gestureConsumed: false,
+      temporaryToolActive: false,
+      hoverGestureMoved: false,
+      longPressFired: false,
+      activePointerId: null,
+    });
   });
   it("exposes a serializable state snapshot for diagnostics", () => {
     const { machine } = create();

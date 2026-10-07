@@ -25,7 +25,7 @@ Legend: `[x]` complete, `[-]` in progress, `[ ]` not started, `[~]` deferred.
       version metadata, README, MIT license.
 - [x] `pnpm install`, `pnpm dev`, and `pnpm build` workflows.
 - [x] Production outputs: `main.js`, `manifest.json`, and `styles.css`.
-- [ ] README: controls table, requirements, compatibility, install steps,
+- [x] README: controls table, requirements, compatibility, install steps,
       hardware-validation caveat, and attribution.
 - [ ] Release verification and generated-bundle inspection.
 
@@ -61,13 +61,14 @@ Legend: `[x]` complete, `[-]` in progress, `[ ]` not started, `[~]` deferred.
 
 ## Core 0.1 behaviour
 
-- [ ] Button-held pen contact enters temporary eraser.
-- [ ] Pen lift immediately restores the prior tool, before barrel release.
-- [ ] Repeated strokes during one held physical button each enter/exit eraser.
-- [ ] A consumed physical hold triggers no action upon release.
-- [ ] Cleanup restores a temporary tool on pointer cancel, watcher/view disposal,
+- [x] Button-held pen contact enters temporary eraser when the compatible bridge
+      accepts the tool switch.
+- [x] Pen lift immediately restores the prior tool, before barrel release.
+- [x] Repeated strokes during one held physical button each enter/exit eraser.
+- [x] A consumed physical hold triggers no action upon release.
+- [x] Cleanup restores a temporary tool on pointer cancel, watcher/view disposal,
       view closure, and plugin unload.
-- [ ] Tap, double-tap, hold, and contact actions map independently to settings.
+- [x] Tap, double-tap, hold, and contact actions map independently to settings.
 
 ## UI and settings
 
@@ -81,8 +82,9 @@ Legend: `[x]` complete, `[-]` in progress, `[ ]` not started, `[~]` deferred.
 
 ## Tests and release acceptance
 
-- [-] Unit tests: normal tap, double tap, long hold, temporary eraser, repeated
-  erasing under one hold, contact before hold timeout, and pointer cancel.
+- [x] Unit tests: normal tap, double tap, long hold, movement cancellation,
+      temporary eraser, repeated erasing under one hold, contact before hold timeout,
+      pointer cancel, context-menu isolation, and disposal.
 - [ ] Compatibility tests: mouse unaffected; normal pen drawing unaffected;
       no-barrel-button styluses degrade gracefully.
 - [ ] Lifecycle/multi-view tests: unload restoration, listener disposal, and

@@ -17,7 +17,7 @@ export class SettingsTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("p", {
-      text: "Requires the Excalidraw community plugin. Copy/paste uses a private in-memory clipboard in version 0.1.",
+      text: "Requires the Excalidraw community plugin. Copy and paste await a compatible Excalidraw integration and are currently unavailable.",
     });
     this.action("Tap", "buttonTapAction");
     this.action("Double tap", "buttonDoubleTapAction");
