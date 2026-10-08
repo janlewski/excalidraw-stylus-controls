@@ -50,7 +50,7 @@
 ## Git commits and attribution
 
 - Use Conventional Commits for every commit message (for example,
-  `feat: add stylus menu lifecycle tests` or `fix: restore temporary tools on cancellation`).
+  `feat(menu): add stylus menu lifecycle tests` or `fix: restore temporary tools on cancellation`).
 - Never change `user.name`, `user.email`, `GIT_AUTHOR_*`, or `GIT_COMMITTER_*`.
   Agents are not commit authors and must not add `Co-authored-by` trailers.
 - When asked to create a commit, use the repository's configured identity and
