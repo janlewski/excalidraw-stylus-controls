@@ -1,0 +1,10 @@
+{
+  "id": "excalidraw-stylus-controls",
+  "name": "Excalidraw Stylus Controls",
+  "version": "0.1.0",
+  "minAppVersion": "1.6.0",
+  "description": "Configurable S Pen controls for Excalidraw views.",
+  "author": "janlewski",
+  "authorUrl": "https://github.com/janlewski",
+  "isDesktopOnly": false
+}
