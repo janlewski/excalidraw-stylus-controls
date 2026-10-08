@@ -17,6 +17,7 @@ export class StylusController {
   private readonly machine: StylusGestureMachine;
   private savedTool: ActiveToolSnapshot | null = null;
   private disposed = false;
+  private attached = false;
   private readonly listeners: Array<[keyof HTMLElementEventMap, EventListener]> = [];
   private readonly overlay: DebugOverlay;
   private latestEvent: NormalizedStylusEvent | null = null;
@@ -38,6 +39,8 @@ export class StylusController {
   }
 
   attach(): void {
+    if (this.disposed || this.attached) return;
+    this.attached = true;
     const element = this.leaf.view.containerEl;
     for (const type of [
       "pointerdown",
@@ -55,6 +58,7 @@ export class StylusController {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.attached = false;
     for (const [type, listener] of this.listeners)
       this.leaf.view.containerEl.removeEventListener(type, listener, true);
     this.listeners.length = 0;
@@ -86,8 +90,9 @@ export class StylusController {
     switch (effect.type) {
       case "temporary-tool-start":
         if (!this.savedTool) {
-          this.savedTool = this.bridge.startTemporaryEraser();
-          if (!this.savedTool) this.machine.temporaryToolDidNotStart();
+          const result = this.bridge.startTemporaryEraser();
+          if (result.ok) this.savedTool = result.value;
+          else this.machine.temporaryToolDidNotStart();
         }
         break;
       case "temporary-tool-end":

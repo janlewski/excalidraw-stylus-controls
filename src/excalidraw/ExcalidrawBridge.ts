@@ -1,84 +1,96 @@
 import { Notice, type WorkspaceLeaf } from "obsidian";
 import type { Point } from "../stylus/types";
 import {
+  getLeafApi,
   readActiveTool,
-  toolCapabilities,
   type ActiveToolSnapshot,
-  type ImperativeApi,
+  type BridgeOperationResult,
+  type BridgeResult,
+  type CompatibleImperativeApi,
 } from "./compatibility";
 
-export type { ActiveToolSnapshot } from "./compatibility";
+export type {
+  ActiveToolSnapshot,
+  BridgeFailureCode,
+  BridgeOperationResult,
+  BridgeResult,
+} from "./compatibility";
 
 /** Compatibility boundary for the optional Excalidraw plugin. */
 export class ExcalidrawBridge {
   private warned = false;
   constructor(private readonly leaf: WorkspaceLeaf) {}
 
-  startTemporaryEraser(): ActiveToolSnapshot | null {
-    const api = this.getApi();
-    const capabilities = toolCapabilities(api);
-    if (!api || !capabilities.canReadActiveTool || !capabilities.canSetActiveTool) {
-      this.unsupported("Temporary eraser requires active-tool read and write support.");
-      return null;
-    }
+  startTemporaryEraser(): BridgeResult<ActiveToolSnapshot> {
+    const apiResult = this.getApi();
+    if (!apiResult.ok) return this.report(apiResult);
     try {
-      const tool = readActiveTool(api);
+      const tool = readActiveTool(apiResult.value);
       if (!tool) {
-        this.unsupported("Temporary eraser could not read the current active tool.");
-        return null;
+        return this.failure(
+          "incompatible",
+          "Temporary eraser could not read the current active tool."
+        );
       }
-      api.setActiveTool?.({ type: "eraser" });
-      return tool;
+      apiResult.value.setActiveTool({ type: "eraser" });
+      return { ok: true, value: tool };
     } catch {
-      this.unsupported("Temporary eraser is unavailable in this Excalidraw view.");
-      return null;
+      return this.failure("failed", "Temporary eraser is unavailable in this Excalidraw view.");
     }
   }
-  restoreTool(tool: ActiveToolSnapshot): boolean {
-    const api = this.getApi();
-    if (!toolCapabilities(api).canSetActiveTool) {
-      this.unsupported("Restoring the previous tool requires active-tool write support.");
-      return false;
-    }
+  restoreTool(tool: ActiveToolSnapshot): BridgeOperationResult {
+    const apiResult = this.getApi();
+    if (!apiResult.ok) return this.report(apiResult);
     try {
-      api?.setActiveTool?.(tool);
-      return true;
+      apiResult.value.setActiveTool(tool);
+      return { ok: true, value: undefined };
     } catch {
-      this.unsupported("The previous tool could not be restored in this Excalidraw view.");
-      return false;
+      return this.failure(
+        "failed",
+        "The previous tool could not be restored in this Excalidraw view."
+      );
     }
   }
-  setTool(type: string): boolean {
-    const api = this.getApi();
-    if (!toolCapabilities(api).canSetActiveTool) {
-      this.unsupported("Tool switching requires active-tool write support.");
-      return false;
-    }
+  setTool(type: string): BridgeOperationResult {
+    const apiResult = this.getApi();
+    if (!apiResult.ok) return this.report(apiResult);
     try {
-      api?.setActiveTool?.({ type });
-      return true;
+      apiResult.value.setActiveTool({ type });
+      return { ok: true, value: undefined };
     } catch {
-      this.unsupported("Tool switching is unavailable in this Excalidraw view.");
-      return false;
+      return this.failure("failed", "Tool switching is unavailable in this Excalidraw view.");
     }
   }
-  copySelectedElements(): void {
-    this.unsupported("Copy requires a compatible Excalidraw API.");
+  copySelectedElements(): BridgeOperationResult {
+    return this.failure("unavailable", "Copy requires a compatible Excalidraw API.");
   }
-  pasteAt(point: Point): void {
+  pasteAt(point: Point): BridgeOperationResult {
     void point;
-    this.unsupported("Paste requires a compatible Excalidraw API.");
+    return this.failure("unavailable", "Paste requires a compatible Excalidraw API.");
   }
 
-  private getApi(): ImperativeApi | null {
-    // Excalidraw exposes no stable Community Plugin API for this path. Keep this
-    // optional capability probe isolated until a documented leaf-aware API exists.
+  private getApi(): BridgeResult<CompatibleImperativeApi> {
     try {
-      const view = this.leaf.view as unknown as { excalidrawAPI?: ImperativeApi };
-      return view.excalidrawAPI ?? null;
+      return getLeafApi(this.leaf.view);
     } catch {
-      return null;
+      return {
+        ok: false,
+        code: "failed",
+        message: "Excalidraw API lookup failed for this leaf.",
+      };
     }
+  }
+
+  private report<T>(result: Exclude<BridgeResult<T>, { ok: true }>): BridgeResult<never> {
+    this.unsupported(result.message);
+    return result;
+  }
+  private failure(
+    code: "unavailable" | "incompatible" | "failed",
+    message: string
+  ): BridgeResult<never> {
+    this.unsupported(message);
+    return { ok: false, code, message };
   }
   private unsupported(message: string): void {
     if (!this.warned) {
