@@ -4,26 +4,43 @@ import { DebugLogger } from "../debug/DebugLogger";
 import type { StylusControlsSettings } from "../settings/settings";
 import { StylusController, type ActionHandler } from "./StylusController";
 
+export interface StylusControllerLike {
+  attach(): void;
+  dispose(): void;
+  getTrace(): string;
+}
+
+export type StylusControllerFactory = (leaf: WorkspaceLeaf) => StylusControllerLike;
+
 export class StylusViewRegistry {
-  private readonly controllers = new Map<WorkspaceLeaf, StylusController>();
+  private readonly controllers = new Map<WorkspaceLeaf, StylusControllerLike>();
+  private readonly createController: StylusControllerFactory;
+
   constructor(
     private readonly app: App,
     private readonly settings: () => StylusControlsSettings,
-    private readonly actionHandler: ActionHandler
-  ) {}
-
-  sync(): void {
-    const leaves = new Set(this.app.workspace.getLeavesOfType("excalidraw"));
-    for (const leaf of leaves)
-      if (!this.controllers.has(leaf)) {
+    private readonly actionHandler: ActionHandler,
+    createController?: StylusControllerFactory
+  ) {
+    this.createController =
+      createController ??
+      ((leaf) => {
         const debug = new DebugLogger(() => this.settings().debugMode);
-        const controller = new StylusController(
+        return new StylusController(
           leaf,
           new ExcalidrawBridge(leaf),
           this.settings,
           debug,
           this.actionHandler
         );
+      });
+  }
+
+  sync(): void {
+    const leaves = new Set(this.app.workspace.getLeavesOfType("excalidraw"));
+    for (const leaf of leaves)
+      if (!this.controllers.has(leaf)) {
+        const controller = this.createController(leaf);
         controller.attach();
         this.controllers.set(leaf, controller);
       }

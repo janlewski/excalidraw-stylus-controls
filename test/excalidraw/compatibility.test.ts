@@ -33,6 +33,33 @@ describe("Excalidraw tool compatibility", () => {
     expect(getLeafApi({ excalidrawAPI: api })).toEqual({ ok: true, value: api });
   });
 
+  it("targets the supplied leaf before obtaining the ExcalidrawAutomate API", () => {
+    const api = { getAppState: () => ({}), setActiveTool: () => undefined };
+    const view = {};
+    const setView = (target: unknown) => expect(target).toBe(view);
+    expect(
+      getLeafApi(view, {
+        setView,
+        getExcalidrawAPI: () => api,
+      })
+    ).toEqual({ ok: true, value: api });
+  });
+
+  it("does not fall back to a leaf property after ExcalidrawAutomate fails", () => {
+    const api = { getAppState: () => ({}), setActiveTool: () => undefined };
+    expect(
+      getLeafApi(
+        { excalidrawAPI: api },
+        {
+          setView: () => {
+            throw new Error("closed");
+          },
+          getExcalidrawAPI: () => api,
+        }
+      )
+    ).toMatchObject({ ok: false, code: "failed" });
+  });
+
   it("distinguishes a missing API from an incompatible one", () => {
     expect(getLeafApi({})).toMatchObject({ ok: false, code: "unavailable" });
     expect(getLeafApi({ excalidrawAPI: { getAppState: () => ({}) } })).toMatchObject({

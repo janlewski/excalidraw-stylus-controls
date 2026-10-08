@@ -1,6 +1,11 @@
 import { PluginSettingTab, Setting } from "obsidian";
 import type StylusControlsPlugin from "../main";
-import type { StylusAction } from "./settings";
+import {
+  NUMERIC_SETTING_LIMITS,
+  parseNumericSetting,
+  type NumericSettingKey,
+  type StylusAction,
+} from "./settings";
 
 const actions: Record<StylusAction, string> = {
   menu: "Open menu",
@@ -69,13 +74,20 @@ export class SettingsTab extends PluginSettingTab {
         .onChange(async (value) => this.plugin.updateSettings({ [key]: value as StylusAction }));
     });
   }
-  private number(name: string, key: "doubleTapMs" | "longPressMs" | "movementThresholdPx"): void {
+  private number(name: string, key: NumericSettingKey): void {
+    const { min, max } = NUMERIC_SETTING_LIMITS[key];
     new Setting(this.containerEl)
       .setName(name)
+      .setDesc(`Whole milliseconds/pixels from ${min} to ${max}.`)
       .addText((text) =>
-        text
-          .setValue(String(this.plugin.settings[key]))
-          .onChange(async (value) => this.plugin.updateSettings({ [key]: Number(value) }))
+        text.setValue(String(this.plugin.settings[key])).onChange(async (value) => {
+          const parsed = parseNumericSetting(key, value);
+          text.inputEl.setCustomValidity(
+            parsed === null ? `Enter a whole number from ${min} to ${max}.` : ""
+          );
+          if (parsed === null) return;
+          await this.plugin.updateSettings({ [key]: parsed });
+        })
       );
   }
 }

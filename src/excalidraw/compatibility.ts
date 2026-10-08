@@ -29,6 +29,12 @@ export interface ExcalidrawLeafSurface {
   excalidrawAPI?: unknown;
 }
 
+/** The documented, view-targeted portion of ExcalidrawAutomate used by this plugin. */
+export interface ExcalidrawAutomateSurface {
+  setView: (view: unknown) => unknown;
+  getExcalidrawAPI: () => unknown;
+}
+
 export interface ToolCapabilities {
   canReadActiveTool: boolean;
   canSetActiveTool: boolean;
@@ -46,7 +52,10 @@ export function readActiveTool(api: ImperativeApi): ActiveToolSnapshot | null {
   return activeTool ? { ...activeTool } : null;
 }
 
-export function getLeafApi(view: unknown): BridgeResult<CompatibleImperativeApi> {
+export function getLeafApi(
+  view: unknown,
+  automate = getGlobalAutomate()
+): BridgeResult<CompatibleImperativeApi> {
   if (!view || typeof view !== "object") {
     return {
       ok: false,
@@ -54,7 +63,41 @@ export function getLeafApi(view: unknown): BridgeResult<CompatibleImperativeApi>
       message: "This leaf does not expose an Excalidraw view.",
     };
   }
+  if (automate) {
+    try {
+      // ExcalidrawAutomate documents setView(view) specifically so operations
+      // are scoped to that view. Never pass "active" here.
+      automate.setView(view);
+      return validateImperativeApi(automate.getExcalidrawAPI());
+    } catch {
+      return {
+        ok: false,
+        code: "failed",
+        message: "Excalidraw could not target this leaf's canvas.",
+      };
+    }
+  }
+
+  // This fallback is deliberately isolated: it is not part of Excalidraw's
+  // documented third-party API surface.
   const api = (view as ExcalidrawLeafSurface).excalidrawAPI;
+  return validateImperativeApi(api);
+}
+
+export function getGlobalAutomate(): ExcalidrawAutomateSurface | null {
+  const candidate = (globalThis as { ExcalidrawAutomate?: unknown }).ExcalidrawAutomate;
+  if (
+    candidate &&
+    typeof candidate === "object" &&
+    typeof (candidate as ExcalidrawAutomateSurface).setView === "function" &&
+    typeof (candidate as ExcalidrawAutomateSurface).getExcalidrawAPI === "function"
+  ) {
+    return candidate as ExcalidrawAutomateSurface;
+  }
+  return null;
+}
+
+function validateImperativeApi(api: unknown): BridgeResult<CompatibleImperativeApi> {
   if (!api || typeof api !== "object") {
     return {
       ok: false,

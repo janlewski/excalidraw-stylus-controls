@@ -24,6 +24,20 @@ export const DEFAULT_SETTINGS: StylusControlsSettings = {
   debugOverlay: false,
 };
 
+export const NUMERIC_SETTING_LIMITS = {
+  doubleTapMs: { min: 100, max: 1000 },
+  longPressMs: { min: 150, max: 2000 },
+  movementThresholdPx: { min: 1, max: 100 },
+} as const;
+
+export type NumericSettingKey = keyof typeof NUMERIC_SETTING_LIMITS;
+
+export function parseNumericSetting(key: NumericSettingKey, value: string): number | null {
+  const parsed = Number(value);
+  const { min, max } = NUMERIC_SETTING_LIMITS[key];
+  return Number.isInteger(parsed) && parsed >= min && parsed <= max ? parsed : null;
+}
+
 export function normalizeSettings(value: Partial<StylusControlsSettings>): StylusControlsSettings {
   const action = (candidate: unknown, fallback: StylusAction): StylusAction =>
     candidate === "menu" || candidate === "copy" || candidate === "paste" || candidate === "none"
@@ -41,9 +55,24 @@ export function normalizeSettings(value: Partial<StylusControlsSettings>): Stylu
     ),
     buttonHoldAction: action(value.buttonHoldAction, DEFAULT_SETTINGS.buttonHoldAction),
     buttonContactAction: value.buttonContactAction === "none" ? "none" : "eraser",
-    doubleTapMs: number(value.doubleTapMs, 300, 100, 1000),
-    longPressMs: number(value.longPressMs, 450, 150, 2000),
-    movementThresholdPx: number(value.movementThresholdPx, 8, 1, 100),
+    doubleTapMs: number(
+      value.doubleTapMs,
+      300,
+      NUMERIC_SETTING_LIMITS.doubleTapMs.min,
+      NUMERIC_SETTING_LIMITS.doubleTapMs.max
+    ),
+    longPressMs: number(
+      value.longPressMs,
+      450,
+      NUMERIC_SETTING_LIMITS.longPressMs.min,
+      NUMERIC_SETTING_LIMITS.longPressMs.max
+    ),
+    movementThresholdPx: number(
+      value.movementThresholdPx,
+      8,
+      NUMERIC_SETTING_LIMITS.movementThresholdPx.min,
+      NUMERIC_SETTING_LIMITS.movementThresholdPx.max
+    ),
     debugMode: value.debugMode === true,
     debugOverlay: value.debugOverlay === true,
   };
