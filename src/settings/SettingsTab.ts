@@ -45,6 +45,21 @@ export class SettingsTab extends PluginSettingTab {
     this.number("Long-press delay (ms)", "longPressMs");
     this.number("Movement threshold (px)", "movementThresholdPx");
     new Setting(containerEl)
+      .setName("Barrel button signal")
+      .setDesc(
+        "The standard pen barrel signal is buttons: 2. If the debug overlay shows a different bit while the side button is held, select that bit."
+      )
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("2", "Standard barrel (buttons: 2)")
+          .addOption("1", "Primary/tip bit (buttons: 1)")
+          .addOption("32", "Eraser bit (buttons: 32)")
+          .setValue(String(this.plugin.settings.barrelButtonMask))
+          .onChange(async (value) =>
+            this.plugin.updateSettings({ barrelButtonMask: Number(value) as 1 | 2 | 32 })
+          )
+      );
+    new Setting(containerEl)
       .setName("Debug logging")
       .setDesc("Logs bounded raw pen event traces to the developer console.")
       .addToggle((toggle) =>
@@ -61,6 +76,14 @@ export class SettingsTab extends PluginSettingTab {
         toggle
           .setValue(this.plugin.settings.debugOverlay)
           .onChange(async (value) => this.plugin.updateSettings({ debugOverlay: value }))
+      );
+    new Setting(containerEl)
+      .setName("Export debug trace")
+      .setDesc(
+        "Copies buffered pen events from every open Excalidraw view as JSON, ready to attach to a bug report."
+      )
+      .addButton((button) =>
+        button.setButtonText("Copy trace").onClick(() => this.plugin.copyStylusEventTrace())
       );
   }
   private action(

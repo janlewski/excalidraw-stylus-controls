@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseNumericSetting } from "../../src/settings/settings";
+import { normalizeSettings, parseNumericSetting } from "../../src/settings/settings";
 
 describe("numeric stylus settings", () => {
   it.each([
@@ -17,5 +17,14 @@ describe("numeric stylus settings", () => {
     ["movementThresholdPx", "not a number"],
   ] as const)("rejects an invalid %s value", (key, input) => {
     expect(parseNumericSetting(key, input)).toBeNull();
+  });
+});
+
+describe("barrel button signal setting", () => {
+  it("defaults to the standard barrel bit and permits documented overrides", () => {
+    expect(normalizeSettings({}).barrelButtonMask).toBe(2);
+    expect(normalizeSettings({ barrelButtonMask: 1 }).barrelButtonMask).toBe(1);
+    expect(normalizeSettings({ barrelButtonMask: 32 }).barrelButtonMask).toBe(32);
+    expect(normalizeSettings({ barrelButtonMask: 4 as never }).barrelButtonMask).toBe(2);
   });
 });

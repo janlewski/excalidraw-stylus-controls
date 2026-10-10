@@ -23,7 +23,8 @@ export class DebugOverlay {
     ].join(" · ");
     overlay.setText(
       [
-        `S Pen ${event.kind} id:${event.pointerId} buttons:${event.buttons} pressure:${event.pressure.toFixed(2)}`,
+        `S Pen ${event.kind} id:${event.pointerId} button:${event.button} buttons:${event.buttons} pressure:${event.pressure.toFixed(2)}`,
+        `tilt:${event.tiltX},${event.tiltY} twist:${event.twist} tangential:${event.tangentialPressure.toFixed(2)} size:${event.width}x${event.height}`,
         stateSummary,
         `effect:${effect?.type ?? "none"}`,
       ].join("\n")

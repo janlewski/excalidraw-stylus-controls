@@ -1,4 +1,5 @@
 export type StylusAction = "menu" | "copy" | "paste" | "none";
+export type BarrelButtonMask = 1 | 2 | 32;
 
 export interface StylusControlsSettings {
   buttonTapAction: StylusAction;
@@ -8,6 +9,8 @@ export interface StylusControlsSettings {
   doubleTapMs: number;
   longPressMs: number;
   movementThresholdPx: number;
+  /** PointerEvent.buttons bit used by the device for the barrel button. */
+  barrelButtonMask: BarrelButtonMask;
   debugMode: boolean;
   debugOverlay: boolean;
 }
@@ -20,6 +23,8 @@ export const DEFAULT_SETTINGS: StylusControlsSettings = {
   doubleTapMs: 300,
   longPressMs: 450,
   movementThresholdPx: 8,
+  // Pointer Events specifies bit 2 for a pen barrel button. Bit 1 is the tip.
+  barrelButtonMask: 2,
   debugMode: false,
   debugOverlay: false,
 };
@@ -73,6 +78,10 @@ export function normalizeSettings(value: Partial<StylusControlsSettings>): Stylu
       NUMERIC_SETTING_LIMITS.movementThresholdPx.min,
       NUMERIC_SETTING_LIMITS.movementThresholdPx.max
     ),
+    barrelButtonMask:
+      value.barrelButtonMask === 1 || value.barrelButtonMask === 32
+        ? value.barrelButtonMask
+        : DEFAULT_SETTINGS.barrelButtonMask,
     debugMode: value.debugMode === true,
     debugOverlay: value.debugOverlay === true,
   };

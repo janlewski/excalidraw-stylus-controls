@@ -64,7 +64,7 @@ function pen(type: "pointermove" | "pointerdown" | "pointerup" | "pointercancel"
     type,
     pointerType: "pen",
     pointerId: 1,
-    buttons,
+    buttons: buttons === 1 ? (type === "pointerdown" ? 3 : 2) : buttons,
     button: 0,
     pressure: 0.5,
     clientX: 12,

@@ -30,15 +30,7 @@ export default class StylusControlsPlugin extends Plugin {
     this.addCommand({
       id: "copy-stylus-event-trace",
       name: "Copy latest stylus event trace",
-      callback: async () => {
-        const trace = this.registry?.exportTraces() ?? "[]";
-        try {
-          await navigator.clipboard.writeText(trace);
-          new Notice("Stylus event trace copied.");
-        } catch {
-          new Notice("Unable to copy event trace. Check the developer console.");
-        }
-      },
+      callback: () => this.copyStylusEventTrace(),
     });
   }
   onunload(): void {
@@ -50,5 +42,14 @@ export default class StylusControlsPlugin extends Plugin {
     this.settings = normalizeSettings({ ...this.settings, ...patch });
     await this.saveData(this.settings);
     this.registry?.refresh();
+  }
+  async copyStylusEventTrace(): Promise<void> {
+    const trace = this.registry?.exportTraces() ?? "[]";
+    try {
+      await navigator.clipboard.writeText(trace);
+      new Notice("Stylus event trace copied as JSON.");
+    } catch {
+      new Notice("Unable to copy the stylus trace. Check the developer console.");
+    }
   }
 }

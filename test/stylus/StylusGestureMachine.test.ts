@@ -34,11 +34,19 @@ const event = (
   point = { x: 10, y: 12 }
 ): NormalizedStylusEvent => ({
   kind,
-  buttons,
+  // Existing test calls use 1 as a shorthand for “barrel held”. Encode the
+  // actual PointerEvent bitfield here: barrel is 2, tip + barrel is 3.
+  buttons: buttons === 1 ? (kind === "down" ? 3 : 2) : buttons,
   pointerType,
   pointerId: 1,
   button: 0,
   pressure: 0,
+  tangentialPressure: 0,
+  tiltX: 0,
+  tiltY: 0,
+  twist: 0,
+  width: 1,
+  height: 1,
   x: point.x,
   y: point.y,
   timestamp: 0,
@@ -52,6 +60,7 @@ const create = () => {
       doubleTapMs: 300,
       longPressMs: 450,
       movementThresholdPx: 8,
+      barrelButtonMask: 2,
     },
     scheduler
   );
@@ -61,6 +70,15 @@ const create = () => {
 };
 
 describe("StylusGestureMachine", () => {
+  it("uses the standard barrel bit rather than the pen-tip bit", () => {
+    const { machine } = create();
+    machine.handle(event("move", 1));
+    expect(machine.snapshot().barrelButtonHeld).toBe(true);
+
+    const { machine: tipOnlyMachine } = create();
+    tipOnlyMachine.handle({ ...event("move", 0), buttons: 1 });
+    expect(tipOnlyMachine.snapshot().barrelButtonHeld).toBe(false);
+  });
   it("delays a normal hover button tap", () => {
     const { machine, scheduler, effects } = create();
     expect(machine.handle(event("move", 1))).toEqual([]);

@@ -12,6 +12,12 @@ export interface NormalizedStylusEvent extends Point {
   buttons: number;
   button: number;
   pressure: number;
+  tangentialPressure: number;
+  tiltX: number;
+  tiltY: number;
+  twist: number;
+  width: number;
+  height: number;
   timestamp: number;
   isCanvasTarget: boolean;
 }
@@ -30,6 +36,7 @@ export interface GestureSettings {
   doubleTapMs: number;
   longPressMs: number;
   movementThresholdPx: number;
+  barrelButtonMask: 1 | 2 | 32;
 }
 
 export interface GestureStateSnapshot {
