@@ -77,6 +77,14 @@ export class SettingsTab extends PluginSettingTab {
           .setValue(this.plugin.settings.debugOverlay)
           .onChange(async (value) => this.plugin.updateSettings({ debugOverlay: value }))
       );
+    new Setting(containerEl)
+      .setName("Export debug trace")
+      .setDesc(
+        "Copies buffered pen events from every open Excalidraw view as JSON, ready to attach to a bug report."
+      )
+      .addButton((button) =>
+        button.setButtonText("Copy trace").onClick(() => this.plugin.copyStylusEventTrace())
+      );
   }
   private action(
     name: string,

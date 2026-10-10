@@ -24,8 +24,9 @@ multi-pane cases with a second drawing open beside it.
 1. In **Settings → Excalidraw Stylus Controls**, enable **Debug logging** and
    **Debug overlay**.
 2. Open Android/Obsidian developer tools or the available log capture path.
-3. Export the bounded trace using **Copy latest stylus event trace** after each
-   scenario.
+3. Export the bounded trace after each scenario using **Export debug trace →
+   Copy trace** in the plugin settings (or the **Copy latest stylus event trace**
+   command).
 4. Sanitize drawing content and personal paths before sharing a trace.
 5. Store the trace as a fixture only when its device/version metadata is saved
    alongside it.
