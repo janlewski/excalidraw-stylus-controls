@@ -121,6 +121,7 @@ export class StylusController {
       doubleTapMs: value.doubleTapMs,
       longPressMs: value.longPressMs,
       movementThresholdPx: value.movementThresholdPx,
+      barrelButtonMask: value.barrelButtonMask,
     } as const;
   }
 }

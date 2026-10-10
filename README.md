@@ -23,8 +23,11 @@ do not need them. This plugin does not use Android's system clipboard.
 The temporary tool and menu use an optional Excalidraw compatibility boundary.
 If its required API is unavailable, the plugin leaves the drawing unchanged.
 Samsung S Pen event behaviour varies by WebView and device. Enable debug logging
-in settings and collect a raw trace before relying on gesture mappings. This
-project has not yet been physically validated on a Samsung device.
+and the debug overlay in settings, then collect a raw trace before relying on
+gesture mappings. The default barrel mapping follows Pointer Events
+(`buttons: 2`); the diagnostic settings include documented alternatives when a
+device reports a different bit. This project has not yet been physically
+validated on a Samsung device.
 
 ## Install for testing
 

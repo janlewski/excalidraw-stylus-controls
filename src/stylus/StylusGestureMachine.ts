@@ -60,7 +60,7 @@ export class StylusGestureMachine {
 
     // Hover movement is the only evidence used to interpret buttons as barrel state.
     if (this.penContact) return effects;
-    const heldNow = (event.buttons & 1) !== 0;
+    const heldNow = (event.buttons & this.settings.barrelButtonMask) !== 0;
     if (!this.barrelButtonHeld && heldNow) this.startPress(event);
     if (this.barrelButtonHeld && heldNow) this.trackHoverMovement(event);
     if (this.barrelButtonHeld && !heldNow) this.releasePress(effects);

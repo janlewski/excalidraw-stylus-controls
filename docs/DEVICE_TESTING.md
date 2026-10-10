@@ -30,10 +30,13 @@ multi-pane cases with a second drawing open beside it.
 5. Store the trace as a fixture only when its device/version metadata is saved
    alongside it.
 
-The expected starting pattern is hover `pointermove` with `buttons: 0`, hover
-barrel press with `buttons: 1`, pen contact (`pointerdown` and possibly a pen
-`contextmenu`), lift (`pointerup`), then hover barrel release with `buttons: 0`.
-This is an expectation, not an assumption: report any difference.
+The standard expected pattern is hover `pointermove` with `buttons: 0`, hover
+barrel press with `buttons: 2`, pen contact with tip plus barrel (`pointerdown`
+with `buttons: 3`, and possibly a pen `contextmenu`), lift (`pointerup`), then
+hover barrel release with `buttons: 0`. The debug overlay also exposes `button`,
+pressure, tilt, twist, tangential pressure, and contact size. If the side button
+uses another `buttons` bit on a device, select it in **Barrel button signal** and
+capture a trace. This is an expectation, not an assumption: report any difference.
 
 ## Functional cases
 
