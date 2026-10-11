@@ -114,6 +114,15 @@ describe("StylusGestureMachine", () => {
     expect(machine.handle(event("up", 0))).toEqual([{ type: "temporary-tool-end" }]);
     expect(machine.handle(event("move", 0))).toEqual([]);
   });
+  it("recognizes a barrel button first reported with pen contact", () => {
+    const { machine } = create();
+    expect(machine.handle({ ...event("down", 0), buttons: 3 })).toEqual([
+      { type: "temporary-tool-start", point: { x: 10, y: 12 } },
+    ]);
+    expect(machine.snapshot().barrelButtonHeld).toBe(true);
+    expect(machine.handle(event("up", 0))).toEqual([{ type: "temporary-tool-end" }]);
+    expect(machine.snapshot().barrelButtonHeld).toBe(false);
+  });
   it("supports repeated contact strokes in one held press", () => {
     const { machine } = create();
     machine.handle(event("move", 1));

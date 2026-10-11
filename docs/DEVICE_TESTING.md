@@ -34,7 +34,10 @@ multi-pane cases with a second drawing open beside it.
 The standard expected pattern is hover `pointermove` with `buttons: 0`, hover
 barrel press with `buttons: 2`, pen contact with tip plus barrel (`pointerdown`
 with `buttons: 3`, and possibly a pen `contextmenu`), lift (`pointerup`), then
-hover barrel release with `buttons: 0`. The debug overlay also exposes `button`,
+hover barrel release with `buttons: 0`. `buttons: 1` by itself is only pen-tip
+contact, not a barrel-button signal. The trace retains every received pen event
+in its bounded buffer, so perform the hover-press test separately from drawing
+and export immediately afterward. The debug overlay also exposes `button`,
 pressure, tilt, twist, tangential pressure, and contact size. If the side button
 uses another `buttons` bit on a device, select it in **Barrel button signal** and
 capture a trace. This is an expectation, not an assumption: report any difference.
