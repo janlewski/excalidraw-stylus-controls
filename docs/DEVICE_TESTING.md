@@ -42,6 +42,13 @@ pressure, tilt, twist, tangential pressure, and contact size. If the side button
 uses another `buttons` bit on a device, select it in **Barrel button signal** and
 capture a trace. This is an expectation, not an assumption: report any difference.
 
+On Android, test `buttons: 1` only while hovering. Android System WebView may
+translate the native primary stylus button to that same DOM bit as pen contact,
+which makes it impossible to distinguish a barrel press from normal drawing
+after the pen touches the screen. The plugin therefore uses bit `1` only for a
+hover gesture that is established before contact; it will not infer a barrel
+press from a contact-only `buttons: 1` event.
+
 ## Functional cases
 
 For each case, capture a trace and record pass/fail plus observations.

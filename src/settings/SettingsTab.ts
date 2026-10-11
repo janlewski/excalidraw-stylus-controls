@@ -52,7 +52,7 @@ export class SettingsTab extends PluginSettingTab {
       .addDropdown((dropdown) =>
         dropdown
           .addOption("2", "Standard barrel (buttons: 2)")
-          .addOption("1", "Primary/tip bit (buttons: 1)")
+          .addOption("1", "Android/WebView hover signal (buttons: 1)")
           .addOption("32", "Eraser bit (buttons: 32)")
           .setValue(String(this.plugin.settings.barrelButtonMask))
           .onChange(async (value) =>

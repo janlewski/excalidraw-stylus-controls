@@ -52,7 +52,7 @@ const event = (
   timestamp: 0,
   isCanvasTarget: true,
 });
-const create = () => {
+const create = (barrelButtonMask: 1 | 2 | 32 = 2) => {
   const scheduler = new FakeScheduler();
   const machine = new StylusGestureMachine(
     {
@@ -60,7 +60,7 @@ const create = () => {
       doubleTapMs: 300,
       longPressMs: 450,
       movementThresholdPx: 8,
-      barrelButtonMask: 2,
+      barrelButtonMask,
     },
     scheduler
   );
@@ -121,6 +121,11 @@ describe("StylusGestureMachine", () => {
     ]);
     expect(machine.snapshot().barrelButtonHeld).toBe(true);
     expect(machine.handle(event("up", 0))).toEqual([{ type: "temporary-tool-end" }]);
+    expect(machine.snapshot().barrelButtonHeld).toBe(false);
+  });
+  it("does not mistake normal pen contact for an Android-mapped barrel bit", () => {
+    const { machine } = create(1);
+    expect(machine.handle({ ...event("down", 0), buttons: 1 })).toEqual([]);
     expect(machine.snapshot().barrelButtonHeld).toBe(false);
   });
   it("supports repeated contact strokes in one held press", () => {

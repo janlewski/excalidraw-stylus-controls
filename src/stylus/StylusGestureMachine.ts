@@ -41,8 +41,9 @@ export class StylusGestureMachine {
 
     if (event.kind === "down") {
       // A compliant browser may first expose the barrel state together with
-      // contact (buttons: 3). Do not require an earlier hover move.
-      if (!this.barrelButtonHeld && this.isBarrelHeld(event)) this.startPress(event);
+      // contact (buttons: 3). Bit 1 is deliberately excluded here: Android
+      // WebView can map a stylus button to that same bit as pen contact.
+      if (!this.barrelButtonHeld && this.canRecognizeBarrelOnContact(event)) this.startPress(event);
       this.penContact = true;
       this.activePointerId = event.pointerId;
       if (this.barrelButtonHeld) this.consumeForContact(event, effects);
@@ -190,5 +191,9 @@ export class StylusGestureMachine {
 
   private isBarrelHeld(event: NormalizedStylusEvent): boolean {
     return (event.buttons & this.settings.barrelButtonMask) !== 0;
+  }
+
+  private canRecognizeBarrelOnContact(event: NormalizedStylusEvent): boolean {
+    return this.settings.barrelButtonMask !== 1 && this.isBarrelHeld(event);
   }
 }
