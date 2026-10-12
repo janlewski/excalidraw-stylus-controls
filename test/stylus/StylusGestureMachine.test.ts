@@ -52,7 +52,10 @@ const event = (
   timestamp: 0,
   isCanvasTarget: true,
 });
-const create = () => {
+const create = (
+  barrelButtonMask: 1 | 2 | 4 | 8 | 16 | 32 = 2,
+  primaryContactMode: "hover-only" | "experimental" = "hover-only"
+) => {
   const scheduler = new FakeScheduler();
   const machine = new StylusGestureMachine(
     {
@@ -60,7 +63,8 @@ const create = () => {
       doubleTapMs: 300,
       longPressMs: 450,
       movementThresholdPx: 8,
-      barrelButtonMask: 2,
+      barrelButtonMask,
+      primaryContactMode,
     },
     scheduler
   );
@@ -113,6 +117,26 @@ describe("StylusGestureMachine", () => {
     ]);
     expect(machine.handle(event("up", 0))).toEqual([{ type: "temporary-tool-end" }]);
     expect(machine.handle(event("move", 0))).toEqual([]);
+  });
+  it("recognizes a barrel button first reported with pen contact", () => {
+    const { machine } = create();
+    expect(machine.handle({ ...event("down", 0), buttons: 3 })).toEqual([
+      { type: "temporary-tool-start", point: { x: 10, y: 12 } },
+    ]);
+    expect(machine.snapshot().barrelButtonHeld).toBe(true);
+    expect(machine.handle(event("up", 0))).toEqual([{ type: "temporary-tool-end" }]);
+    expect(machine.snapshot().barrelButtonHeld).toBe(false);
+  });
+  it("does not mistake normal pen contact for an Android-mapped barrel bit", () => {
+    const { machine } = create(1);
+    expect(machine.handle({ ...event("down", 0), buttons: 1 })).toEqual([]);
+    expect(machine.snapshot().barrelButtonHeld).toBe(false);
+  });
+  it("can intentionally test Android primary-bit contact recognition", () => {
+    const { machine } = create(1, "experimental");
+    expect(machine.handle({ ...event("down", 0), buttons: 1 })).toEqual([
+      { type: "temporary-tool-start", point: { x: 10, y: 12 } },
+    ]);
   });
   it("supports repeated contact strokes in one held press", () => {
     const { machine } = create();

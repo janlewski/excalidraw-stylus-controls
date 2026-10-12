@@ -36,7 +36,8 @@ export interface GestureSettings {
   doubleTapMs: number;
   longPressMs: number;
   movementThresholdPx: number;
-  barrelButtonMask: 1 | 2 | 32;
+  barrelButtonMask: 1 | 2 | 4 | 8 | 16 | 32;
+  primaryContactMode: "hover-only" | "experimental";
 }
 
 export interface GestureStateSnapshot {

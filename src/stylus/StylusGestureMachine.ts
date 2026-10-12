@@ -40,6 +40,10 @@ export class StylusGestureMachine {
     }
 
     if (event.kind === "down") {
+      // A compliant browser may first expose the barrel state together with
+      // contact (buttons: 3). Bit 1 is deliberately excluded here: Android
+      // WebView can map a stylus button to that same bit as pen contact.
+      if (!this.barrelButtonHeld && this.canRecognizeBarrelOnContact(event)) this.startPress(event);
       this.penContact = true;
       this.activePointerId = event.pointerId;
       if (this.barrelButtonHeld) this.consumeForContact(event, effects);
@@ -55,12 +59,13 @@ export class StylusGestureMachine {
         effects.push({ type: "temporary-tool-end" });
       }
       if (event.kind === "cancel") this.cancelPress();
+      else if (!this.isBarrelHeld(event)) this.releasePress(effects);
       return effects;
     }
 
-    // Hover movement is the only evidence used to interpret buttons as barrel state.
+    // While hovering, movement carries barrel-button transitions.
     if (this.penContact) return effects;
-    const heldNow = (event.buttons & this.settings.barrelButtonMask) !== 0;
+    const heldNow = this.isBarrelHeld(event);
     if (!this.barrelButtonHeld && heldNow) this.startPress(event);
     if (this.barrelButtonHeld && heldNow) this.trackHoverMovement(event);
     if (this.barrelButtonHeld && !heldNow) this.releasePress(effects);
@@ -182,5 +187,17 @@ export class StylusGestureMachine {
   private cancelPendingTap(): void {
     if (this.pendingTap) this.scheduler.clearTimeout(this.pendingTap.timer);
     this.pendingTap = null;
+  }
+
+  private isBarrelHeld(event: NormalizedStylusEvent): boolean {
+    return (event.buttons & this.settings.barrelButtonMask) !== 0;
+  }
+
+  private canRecognizeBarrelOnContact(event: NormalizedStylusEvent): boolean {
+    return (
+      (this.settings.barrelButtonMask !== 1 ||
+        this.settings.primaryContactMode === "experimental") &&
+      this.isBarrelHeld(event)
+    );
   }
 }

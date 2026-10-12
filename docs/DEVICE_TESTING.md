@@ -21,8 +21,9 @@ multi-pane cases with a second drawing open beside it.
 
 ## Collect a raw trace first
 
-1. In **Settings → Excalidraw Stylus Controls**, enable **Debug logging** and
-   **Debug overlay**.
+1. In **Settings → Excalidraw Stylus Controls**, enable **Debug logging**,
+   **Debug overlay**, and **S Pen test mode**. Test mode records recognition
+   but suppresses menu, clipboard, and temporary-tool changes.
 2. Open Android/Obsidian developer tools or the available log capture path.
 3. Export the bounded trace after each scenario using **Export debug trace →
    Copy trace** in the plugin settings (or the **Copy latest stylus event trace**
@@ -31,13 +32,29 @@ multi-pane cases with a second drawing open beside it.
 5. Store the trace as a fixture only when its device/version metadata is saved
    alongside it.
 
-The standard expected pattern is hover `pointermove` with `buttons: 0`, hover
+Try each **S Pen signal test profile** in a disposable drawing. Selecting a
+profile enables test mode automatically. The standard
+expected pattern is hover `pointermove` with `buttons: 0`, hover
 barrel press with `buttons: 2`, pen contact with tip plus barrel (`pointerdown`
 with `buttons: 3`, and possibly a pen `contextmenu`), lift (`pointerup`), then
-hover barrel release with `buttons: 0`. The debug overlay also exposes `button`,
+hover barrel release with `buttons: 0`. `buttons: 1` by itself is only pen-tip
+contact, not a barrel-button signal. The trace retains every received pen event
+in its bounded buffer, so perform the hover-press test separately from drawing
+and export immediately afterward. The debug overlay also exposes `button`,
 pressure, tilt, twist, tangential pressure, and contact size. If the side button
-uses another `buttons` bit on a device, select it in **Barrel button signal** and
+uses another `buttons` bit on a device, select its candidate test profile and
 capture a trace. This is an expectation, not an assumption: report any difference.
+
+On Android, test `buttons: 1` only while hovering. Android System WebView may
+translate the native primary stylus button to that same DOM bit as pen contact,
+which makes it impossible to distinguish a barrel press from normal drawing
+after the pen touches the screen. The plugin therefore uses bit `1` only for a
+hover gesture that is established before contact; it will not infer a barrel
+press from a contact-only `buttons: 1` event.
+
+The **Android/WebView primary — buttons: 1, contact experiment** profile exists
+only to make this ambiguity observable. It may recognize every ordinary pen
+stroke; test mode must remain enabled and the test must use a disposable drawing.
 
 ## Functional cases
 

@@ -1,5 +1,6 @@
 export type StylusAction = "menu" | "copy" | "paste" | "none";
-export type BarrelButtonMask = 1 | 2 | 32;
+export type BarrelButtonMask = 1 | 2 | 4 | 8 | 16 | 32;
+export type PrimaryContactMode = "hover-only" | "experimental";
 
 export interface StylusControlsSettings {
   buttonTapAction: StylusAction;
@@ -11,6 +12,10 @@ export interface StylusControlsSettings {
   movementThresholdPx: number;
   /** PointerEvent.buttons bit used by the device for the barrel button. */
   barrelButtonMask: BarrelButtonMask;
+  /** Prevent the Android/WebView primary bit from matching ordinary pen contact by default. */
+  primaryContactMode: PrimaryContactMode;
+  /** Allow a tester to inspect recognition without changing the drawing or opening actions. */
+  stylusTestMode: boolean;
   debugMode: boolean;
   debugOverlay: boolean;
 }
@@ -25,6 +30,8 @@ export const DEFAULT_SETTINGS: StylusControlsSettings = {
   movementThresholdPx: 8,
   // Pointer Events specifies bit 2 for a pen barrel button. Bit 1 is the tip.
   barrelButtonMask: 2,
+  primaryContactMode: "hover-only",
+  stylusTestMode: false,
   debugMode: false,
   debugOverlay: false,
 };
@@ -79,9 +86,15 @@ export function normalizeSettings(value: Partial<StylusControlsSettings>): Stylu
       NUMERIC_SETTING_LIMITS.movementThresholdPx.max
     ),
     barrelButtonMask:
-      value.barrelButtonMask === 1 || value.barrelButtonMask === 32
+      value.barrelButtonMask === 1 ||
+      value.barrelButtonMask === 4 ||
+      value.barrelButtonMask === 8 ||
+      value.barrelButtonMask === 16 ||
+      value.barrelButtonMask === 32
         ? value.barrelButtonMask
         : DEFAULT_SETTINGS.barrelButtonMask,
+    primaryContactMode: value.primaryContactMode === "experimental" ? "experimental" : "hover-only",
+    stylusTestMode: value.stylusTestMode === true,
     debugMode: value.debugMode === true,
     debugOverlay: value.debugOverlay === true,
   };
