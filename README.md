@@ -1,7 +1,7 @@
 # Excalidraw Stylus Controls
 
-An Obsidian community plugin in active 0.1.4 development for configurable S Pen
-side-button gestures in Excalidraw views.
+An Obsidian community plugin for configurable S Pen side-button gestures in
+Excalidraw views.
 
 | Gesture                      | Default action                     |
 | ---------------------------- | ---------------------------------- |
