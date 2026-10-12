@@ -4,6 +4,7 @@ import {
   NUMERIC_SETTING_LIMITS,
   parseNumericSetting,
   type NumericSettingKey,
+  type BarrelButtonMask,
   type StylusAction,
 } from "./settings";
 
@@ -12,6 +13,35 @@ const actions: Record<StylusAction, string> = {
   copy: "Copy",
   paste: "Paste",
   none: "Do nothing",
+};
+
+const testProfiles: Record<
+  string,
+  { label: string; mask: BarrelButtonMask; primaryContactMode: "hover-only" | "experimental" }
+> = {
+  "standard": {
+    label: "Standard barrel — buttons: 2",
+    mask: 2,
+    primaryContactMode: "hover-only",
+  },
+  "android-hover": {
+    label: "Android/WebView primary — buttons: 1, hover only",
+    mask: 1,
+    primaryContactMode: "hover-only",
+  },
+  "android-contact": {
+    label: "Android/WebView primary — buttons: 1, contact experiment",
+    mask: 1,
+    primaryContactMode: "experimental",
+  },
+  "auxiliary": {
+    label: "Auxiliary/middle — buttons: 4",
+    mask: 4,
+    primaryContactMode: "hover-only",
+  },
+  "back": { label: "Back — buttons: 8", mask: 8, primaryContactMode: "hover-only" },
+  "forward": { label: "Forward — buttons: 16", mask: 16, primaryContactMode: "hover-only" },
+  "eraser": { label: "Pen eraser — buttons: 32", mask: 32, primaryContactMode: "hover-only" },
 };
 
 export class SettingsTab extends PluginSettingTab {
@@ -45,20 +75,34 @@ export class SettingsTab extends PluginSettingTab {
     this.number("Long-press delay (ms)", "longPressMs");
     this.number("Movement threshold (px)", "movementThresholdPx");
     new Setting(containerEl)
-      .setName("Barrel button signal")
+      .setName("S Pen test mode")
       .setDesc(
-        "The standard pen barrel signal is buttons: 2. If the debug overlay shows a different bit while the side button is held, select that bit."
+        "Suppresses menu, clipboard, and temporary-tool changes while still showing recognized state and effects in the debug overlay. Use this while trying signal profiles."
       )
-      .addDropdown((dropdown) =>
-        dropdown
-          .addOption("2", "Standard barrel (buttons: 2)")
-          .addOption("1", "Android/WebView hover signal (buttons: 1)")
-          .addOption("32", "Eraser bit (buttons: 32)")
-          .setValue(String(this.plugin.settings.barrelButtonMask))
-          .onChange(async (value) =>
-            this.plugin.updateSettings({ barrelButtonMask: Number(value) as 1 | 2 | 32 })
-          )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.stylusTestMode)
+          .onChange(async (value) => this.plugin.updateSettings({ stylusTestMode: value }))
       );
+    new Setting(containerEl)
+      .setName("S Pen signal test profile")
+      .setDesc(
+        "Try one profile at a time with test mode enabled, then export the trace. The Android contact experiment may recognize every ordinary pen stroke; use it only in a disposable drawing."
+      )
+      .addDropdown((dropdown) => {
+        for (const [value, profile] of Object.entries(testProfiles))
+          dropdown.addOption(value, profile.label);
+        dropdown.setValue(this.currentTestProfile()).onChange(async (value) => {
+          const profile = testProfiles[value];
+          if (!profile) return;
+          await this.plugin.updateSettings({
+            barrelButtonMask: profile.mask,
+            primaryContactMode: profile.primaryContactMode,
+            stylusTestMode: true,
+          });
+          this.display();
+        });
+      });
     new Setting(containerEl)
       .setName("Debug logging")
       .setDesc("Logs bounded raw pen event traces to the developer console.")
@@ -112,5 +156,15 @@ export class SettingsTab extends PluginSettingTab {
           await this.plugin.updateSettings({ [key]: parsed });
         })
       );
+  }
+
+  private currentTestProfile(): string {
+    const { barrelButtonMask, primaryContactMode } = this.plugin.settings;
+    return (
+      Object.entries(testProfiles).find(
+        ([, profile]) =>
+          profile.mask === barrelButtonMask && profile.primaryContactMode === primaryContactMode
+      )?.[0] ?? "standard"
+    );
   }
 }

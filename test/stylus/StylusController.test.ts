@@ -44,14 +44,14 @@ class FakeBridge {
   }
 }
 
-function create() {
+function create(settings = DEFAULT_SETTINGS) {
   const container = new FakeContainer();
   const bridge = new FakeBridge();
   const leaf = { view: { containerEl: container } };
   const controller = new StylusController(
     leaf as never,
     bridge as never,
-    () => DEFAULT_SETTINGS,
+    () => settings,
     new DebugLogger(() => false),
     () => undefined,
     scheduler
@@ -115,6 +115,15 @@ describe("StylusController lifecycle", () => {
     controller["onPointerEvent"](pen("pointerdown", 1));
     controller["onPointerEvent"](pen("pointerup", 0));
     expect(bridge.startCalls).toBe(1);
+    expect(bridge.restoreCalls).toEqual([]);
+  });
+
+  it("does not alter Excalidraw while test mode is enabled", () => {
+    const { bridge, controller } = create({ ...DEFAULT_SETTINGS, stylusTestMode: true });
+    controller["onPointerEvent"](pen("pointermove", 1));
+    controller["onPointerEvent"](pen("pointerdown", 1));
+    controller["onPointerEvent"](pen("pointerup", 0));
+    expect(bridge.startCalls).toBe(0);
     expect(bridge.restoreCalls).toEqual([]);
   });
 

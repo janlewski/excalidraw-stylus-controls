@@ -21,10 +21,17 @@ describe("numeric stylus settings", () => {
 });
 
 describe("barrel button signal setting", () => {
-  it("defaults to the standard barrel bit and permits documented overrides", () => {
+  it("defaults to the standard barrel bit and permits diagnostic overrides", () => {
     expect(normalizeSettings({}).barrelButtonMask).toBe(2);
     expect(normalizeSettings({ barrelButtonMask: 1 }).barrelButtonMask).toBe(1);
+    expect(normalizeSettings({ barrelButtonMask: 4 }).barrelButtonMask).toBe(4);
+    expect(normalizeSettings({ barrelButtonMask: 8 }).barrelButtonMask).toBe(8);
+    expect(normalizeSettings({ barrelButtonMask: 16 }).barrelButtonMask).toBe(16);
     expect(normalizeSettings({ barrelButtonMask: 32 }).barrelButtonMask).toBe(32);
-    expect(normalizeSettings({ barrelButtonMask: 4 as never }).barrelButtonMask).toBe(2);
+    expect(normalizeSettings({ barrelButtonMask: 64 as never }).barrelButtonMask).toBe(2);
+    expect(normalizeSettings({ primaryContactMode: "experimental" }).primaryContactMode).toBe(
+      "experimental"
+    );
+    expect(normalizeSettings({ stylusTestMode: true }).stylusTestMode).toBe(true);
   });
 });

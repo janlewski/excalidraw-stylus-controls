@@ -194,6 +194,10 @@ export class StylusGestureMachine {
   }
 
   private canRecognizeBarrelOnContact(event: NormalizedStylusEvent): boolean {
-    return this.settings.barrelButtonMask !== 1 && this.isBarrelHeld(event);
+    return (
+      (this.settings.barrelButtonMask !== 1 ||
+        this.settings.primaryContactMode === "experimental") &&
+      this.isBarrelHeld(event)
+    );
   }
 }

@@ -52,7 +52,10 @@ const event = (
   timestamp: 0,
   isCanvasTarget: true,
 });
-const create = (barrelButtonMask: 1 | 2 | 32 = 2) => {
+const create = (
+  barrelButtonMask: 1 | 2 | 4 | 8 | 16 | 32 = 2,
+  primaryContactMode: "hover-only" | "experimental" = "hover-only"
+) => {
   const scheduler = new FakeScheduler();
   const machine = new StylusGestureMachine(
     {
@@ -61,6 +64,7 @@ const create = (barrelButtonMask: 1 | 2 | 32 = 2) => {
       longPressMs: 450,
       movementThresholdPx: 8,
       barrelButtonMask,
+      primaryContactMode,
     },
     scheduler
   );
@@ -127,6 +131,12 @@ describe("StylusGestureMachine", () => {
     const { machine } = create(1);
     expect(machine.handle({ ...event("down", 0), buttons: 1 })).toEqual([]);
     expect(machine.snapshot().barrelButtonHeld).toBe(false);
+  });
+  it("can intentionally test Android primary-bit contact recognition", () => {
+    const { machine } = create(1, "experimental");
+    expect(machine.handle({ ...event("down", 0), buttons: 1 })).toEqual([
+      { type: "temporary-tool-start", point: { x: 10, y: 12 } },
+    ]);
   });
   it("supports repeated contact strokes in one held press", () => {
     const { machine } = create();

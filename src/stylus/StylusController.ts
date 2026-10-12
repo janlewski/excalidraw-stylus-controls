@@ -87,6 +87,11 @@ export class StylusController {
 
   private applyEffect(effect: GestureEffect): void {
     this.debug.message(`effect: ${effect.type}`);
+    if (this.settings().stylusTestMode) {
+      this.debug.message(`test mode suppressed: ${effect.type}`);
+      if (this.latestEvent) this.overlay.update(this.latestEvent, this.machine.snapshot(), effect);
+      return;
+    }
     switch (effect.type) {
       case "temporary-tool-start":
         if (!this.savedTool) {
@@ -122,6 +127,7 @@ export class StylusController {
       longPressMs: value.longPressMs,
       movementThresholdPx: value.movementThresholdPx,
       barrelButtonMask: value.barrelButtonMask,
+      primaryContactMode: value.primaryContactMode,
     } as const;
   }
 }
