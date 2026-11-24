@@ -33,5 +33,12 @@ describe("barrel button signal setting", () => {
       "experimental"
     );
     expect(normalizeSettings({ stylusTestMode: true }).stylusTestMode).toBe(true);
+    expect(normalizeSettings({}, { android: true }).barrelButtonMask).toBe(1);
+    expect(normalizeSettings({}, { android: true }).primaryContactMode).toBe("hover-only");
+    expect(normalizeSettings({ barrelButtonMask: 2 }, { android: true }).barrelButtonMask).toBe(2);
+    expect(normalizeSettings({}).penBridgeEnabled).toBe(false);
+    expect(normalizeSettings({ lateWindowMs: 40 }).lateWindowMs).toBe(40);
+    expect(normalizeSettings({ lateWindowMs: 500 }).lateWindowMs).toBe(100);
+    expect(normalizeSettings({})).not.toHaveProperty("pairingCode");
   });
 });

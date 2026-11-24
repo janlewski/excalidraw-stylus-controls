@@ -120,7 +120,12 @@ jobs:
           GH_TOKEN: ${{ steps.release-bot-token.outputs.token }}
           VERSION: ${{ inputs.version }}
         run: |
+          prerelease=""
+          if [[ "$VERSION" == *-* ]]; then
+            prerelease="--prerelease"
+          fi
           gh release create "$VERSION" \
             --title="$VERSION" \
             --generate-notes \
+            $prerelease \
             main.js manifest.json styles.css

@@ -1,4 +1,6 @@
 import type {
+  BarrelSource,
+  ExternalButtonInput,
   GestureEffect,
   GestureSettings,
   GestureStateSnapshot,
@@ -24,14 +26,27 @@ export class StylusGestureMachine {
   private holdTimer: unknown | null = null;
   private pendingTap: PendingTap | null = null;
   private activePointerId: number | null = null;
+  private barrelSource: BarrelSource = "pointer";
+  private contactStartedAt: number | null = null;
+  private lastPoint: Point | null = null;
+  private releaseAfterContact = false;
 
   constructor(
     private readonly settings: GestureSettings,
     private readonly scheduler: Scheduler
   ) {}
 
+  /** Switching sources must not turn a held barrel into a tap. */
+  setBarrelSource(source: BarrelSource): void {
+    if (source === this.barrelSource) return;
+    if (this.barrelButtonHeld) this.cancelPress();
+    this.barrelSource = source;
+    this.releaseAfterContact = false;
+  }
+
   handle(event: NormalizedStylusEvent): GestureEffect[] {
     if (event.pointerType !== "pen") return [];
+    this.lastPoint = { x: event.x, y: event.y };
     const effects: GestureEffect[] = [];
     if (event.kind === "contextmenu") {
       if (this.temporaryToolActive || (this.barrelButtonHeld && this.penContact))
@@ -40,10 +55,11 @@ export class StylusGestureMachine {
     }
 
     if (event.kind === "down") {
-      // A compliant browser may first expose the barrel state together with
-      // contact (buttons: 3). Bit 1 is deliberately excluded here: Android
-      // WebView can map a stylus button to that same bit as pen contact.
-      if (!this.barrelButtonHeld && this.canRecognizeBarrelOnContact(event)) this.startPress(event);
+      this.contactStartedAt = event.timestamp;
+      if (this.barrelSource !== "bridge") {
+        if (!this.barrelButtonHeld && this.canRecognizeBarrelOnContact(event))
+          this.startPress(event);
+      }
       this.penContact = true;
       this.activePointerId = event.pointerId;
       if (this.barrelButtonHeld) this.consumeForContact(event, effects);
@@ -54,21 +70,66 @@ export class StylusGestureMachine {
       if (this.activePointerId !== null && event.pointerId !== this.activePointerId) return effects;
       this.penContact = false;
       this.activePointerId = null;
+      this.contactStartedAt = null;
       if (this.temporaryToolActive) {
         this.temporaryToolActive = false;
         effects.push({ type: "temporary-tool-end" });
       }
       if (event.kind === "cancel") this.cancelPress();
-      else if (!this.isBarrelHeld(event)) this.releasePress(effects);
+      else if (this.barrelSource === "bridge") {
+        if (this.releaseAfterContact) {
+          this.releaseAfterContact = false;
+          this.releasePress(effects);
+        }
+      } else if (!this.hoverLatch() && !this.isBarrelHeld(event)) this.releasePress(effects);
       return effects;
     }
 
-    // While hovering, movement carries barrel-button transitions.
     if (this.penContact) return effects;
+    if (this.barrelSource === "bridge") {
+      if (this.barrelButtonHeld) this.trackHoverMovement(event);
+      return effects;
+    }
     const heldNow = this.isBarrelHeld(event);
     if (!this.barrelButtonHeld && heldNow) this.startPress(event);
     if (this.barrelButtonHeld && heldNow) this.trackHoverMovement(event);
     if (this.barrelButtonHeld && !heldNow) this.releasePress(effects);
+    return effects;
+  }
+
+  handleExternalButton(input: ExternalButtonInput): GestureEffect[] {
+    if (this.barrelSource !== "bridge") return [];
+    if (input.down) {
+      if (this.barrelButtonHeld) return [];
+      if (!this.penContact) {
+        this.startPress(this.pointOf(this.lastPoint));
+        return [];
+      }
+      this.barrelButtonHeld = true;
+      this.consumed = true;
+      this.cancelTimer("hold");
+      this.cancelPendingTap();
+      if (this.settings.buttonContactAction !== "eraser" || this.temporaryToolActive) return [];
+      if (this.settings.midStrokePress === "next-contact") return [];
+      const late =
+        this.contactStartedAt !== null &&
+        input.pressedAt <= this.contactStartedAt + this.settings.lateWindowMs;
+      this.temporaryToolActive = true;
+      return [
+        {
+          type: "temporary-tool-split",
+          point: this.pointOf(this.lastPoint),
+          discardStroke: late,
+        },
+      ];
+    }
+    if (!this.barrelButtonHeld) return [];
+    if (this.penContact) {
+      this.releaseAfterContact = true;
+      return [];
+    }
+    const effects: GestureEffect[] = [];
+    this.releasePress(effects);
     return effects;
   }
 
@@ -99,12 +160,13 @@ export class StylusGestureMachine {
     this.temporaryToolActive = false;
   }
 
-  private startPress(event: NormalizedStylusEvent): void {
+  private startPress(origin: NormalizedStylusEvent | Point): void {
+    const point = "kind" in origin ? { x: origin.x, y: origin.y } : origin;
     this.barrelButtonHeld = true;
     this.consumed = false;
     this.moved = false;
     this.holdFired = false;
-    this.pressOrigin = { x: event.x, y: event.y };
+    this.pressOrigin = point;
     this.holdTimer = this.scheduler.setTimeout(() => {
       if (
         !this.barrelButtonHeld ||
@@ -175,6 +237,7 @@ export class StylusGestureMachine {
     this.holdFired = false;
     this.pressOrigin = null;
     this.activePointerId = null;
+    this.releaseAfterContact = false;
   }
 
   private cancelTimer(which: "hold"): void {
@@ -199,5 +262,17 @@ export class StylusGestureMachine {
         this.settings.primaryContactMode === "experimental") &&
       this.isBarrelHeld(event)
     );
+  }
+
+  private hoverLatch(): boolean {
+    return (
+      this.barrelSource === "pointer" &&
+      this.settings.barrelButtonMask === 1 &&
+      this.settings.primaryContactMode === "hover-only"
+    );
+  }
+
+  private pointOf(point: Point | null): Point {
+    return point ? { x: point.x, y: point.y } : { x: 0, y: 0 };
   }
 }

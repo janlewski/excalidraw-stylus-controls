@@ -3,13 +3,24 @@ export interface ActiveToolSnapshot {
   [key: string]: unknown;
 }
 
+export interface SceneElementLike {
+  id?: string;
+}
+
+export interface AppStateLike {
+  activeTool?: ActiveToolSnapshot;
+  newElement?: { id?: string } | null;
+  draggingElement?: { id?: string } | null;
+}
+
 export interface ImperativeApi {
-  getAppState?: () => { activeTool?: ActiveToolSnapshot };
+  getAppState?: () => AppStateLike;
   setActiveTool?: (tool: ActiveToolSnapshot) => void;
+  getSceneElements?: () => SceneElementLike[];
 }
 
 export interface CompatibleImperativeApi extends ImperativeApi {
-  getAppState: () => { activeTool?: ActiveToolSnapshot };
+  getAppState: () => AppStateLike;
   setActiveTool: (tool: ActiveToolSnapshot) => void;
 }
 
@@ -33,6 +44,7 @@ export interface ExcalidrawLeafSurface {
 export interface ExcalidrawAutomateSurface {
   setView: (view: unknown) => unknown;
   getExcalidrawAPI: () => unknown;
+  deleteViewElements?: (elements: unknown[]) => boolean;
 }
 
 export interface ToolCapabilities {
@@ -50,6 +62,39 @@ export function toolCapabilities(api: ImperativeApi | null): ToolCapabilities {
 export function readActiveTool(api: ImperativeApi): ActiveToolSnapshot | null {
   const activeTool = api.getAppState?.().activeTool;
   return activeTool ? { ...activeTool } : null;
+}
+
+export function readNewElementId(api: ImperativeApi): string | null {
+  const state = api.getAppState?.();
+  const id = state?.newElement?.id ?? state?.draggingElement?.id;
+  return typeof id === "string" && id.length > 0 ? id : null;
+}
+
+export function hasNewElementField(state: unknown): boolean {
+  return (
+    !!state && typeof state === "object" && ("newElement" in state || "draggingElement" in state)
+  );
+}
+
+export interface InstalledExcalidraw {
+  installed: boolean;
+  enabled: boolean;
+  version: string | null;
+}
+
+interface PluginHost {
+  plugins?: Record<string, { manifest?: { version?: string } } | undefined>;
+  enabledPlugins?: { has?: (id: string) => boolean };
+}
+
+export function readInstalledExcalidraw(app: object): InstalledExcalidraw {
+  const host = app as { plugins?: PluginHost };
+  const plugin = host.plugins?.plugins?.["obsidian-excalidraw-plugin"];
+  return {
+    installed: Boolean(plugin),
+    enabled: host.plugins?.enabledPlugins?.has?.("obsidian-excalidraw-plugin") === true,
+    version: plugin?.manifest?.version ?? null,
+  };
 }
 
 export function getLeafApi(

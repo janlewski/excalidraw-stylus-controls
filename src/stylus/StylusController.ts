@@ -2,8 +2,11 @@ import type { WorkspaceLeaf } from "obsidian";
 import type { ExcalidrawBridge, ActiveToolSnapshot } from "../excalidraw/ExcalidrawBridge";
 import type { DebugLogger } from "../debug/DebugLogger";
 import { DebugOverlay } from "../debug/DebugOverlay";
-import type { StylusControlsSettings } from "../settings/settings";
-import { normalizePointerEvent } from "./normalizePointerEvent";
+import type { PenButtonSignal } from "../penbridge/PenBridgeClient";
+import type { PenSignalHub } from "../penbridge/PenSignalHub";
+import { describeBarrelSource, type StylusControlsSettings } from "../settings/settings";
+import { isSynthetic } from "../excalidraw/syntheticPointer";
+import { classifyPenEvent, normalizePointerEvent } from "./normalizePointerEvent";
 import { StylusGestureMachine } from "./StylusGestureMachine";
 import type { GestureEffect, NormalizedStylusEvent, Point, Scheduler } from "./types";
 
@@ -21,6 +24,9 @@ export class StylusController {
   private readonly listeners: Array<[keyof HTMLElementEventMap, EventListener]> = [];
   private readonly overlay: DebugOverlay;
   private latestEvent: NormalizedStylusEvent | null = null;
+  private lastPenEvent: PointerEvent | null = null;
+  lastPenActivityAt = 0;
+  private lastLatency: string | null = null;
 
   constructor(
     private readonly leaf: WorkspaceLeaf,
@@ -28,7 +34,9 @@ export class StylusController {
     private readonly settings: () => StylusControlsSettings,
     private readonly debug: DebugLogger,
     private readonly dispatchAction: ActionHandler,
-    scheduler: Scheduler = window
+    scheduler: Scheduler = window,
+    private readonly pen: PenSignalHub | null = null,
+    private readonly now: () => number = () => performance.now()
   ) {
     this.machine = new StylusGestureMachine(this.gestureSettings(), scheduler);
     this.machine.setEffectSink((effect) => this.applyEffect(effect));
@@ -41,6 +49,7 @@ export class StylusController {
   attach(): void {
     if (this.disposed || this.attached) return;
     this.attached = true;
+    this.pen?.register(this);
     const element = this.leaf.view.containerEl;
     for (const type of [
       "pointerdown",
@@ -59,6 +68,7 @@ export class StylusController {
     if (this.disposed) return;
     this.disposed = true;
     this.attached = false;
+    this.pen?.unregister(this);
     for (const [type, listener] of this.listeners)
       this.leaf.view.containerEl.removeEventListener(type, listener, true);
     this.listeners.length = 0;
@@ -68,40 +78,98 @@ export class StylusController {
   getTrace(): string {
     return this.debug.exportTrace();
   }
+  recentMessages(): string[] {
+    return this.debug.recentMessages();
+  }
+  lastPenPoint(): Point | null {
+    if (!this.latestEvent) return null;
+    return { x: this.latestEvent.x, y: this.latestEvent.y };
+  }
+  bridgeForMenu(): ExcalidrawBridge {
+    return this.bridge;
+  }
+
+  onExternalButton(signal: PenButtonSignal): void {
+    const latency =
+      signal.latencyMs === null ? "receive-time" : `${Math.round(signal.latencyMs)}ms`;
+    this.lastLatency = latency;
+    this.debug.message(
+      `bridge: ${signal.down ? "down" : "up"} seq=${signal.seq} latency=${latency}`
+    );
+    this.machine.setBarrelSource("bridge");
+    for (const effect of this.machine.handleExternalButton({
+      down: signal.down,
+      pressedAt: signal.pressedAtPerf,
+    })) {
+      this.applyEffect(effect);
+    }
+    this.refreshOverlay();
+  }
 
   private onPointerEvent(raw: PointerEvent): void {
+    if (isSynthetic(raw)) return;
     if (raw.pointerType !== "pen") return;
+    this.lastPenEvent = raw;
+    this.lastPenActivityAt = this.now();
+    const held = this.barrelBelievedHeld(raw);
+    const phase = classifyPenEvent(raw, held);
+    if (phase === "hover-button" && this.settings().suppressHoverButtonEvents) {
+      if (typeof raw.stopImmediatePropagation === "function") raw.stopImmediatePropagation();
+      raw.preventDefault();
+    }
     const event = normalizePointerEvent(
       raw,
       this.leaf.view.containerEl.contains(raw.target as Node)
     );
+    if (phase === "hover-button") event.kind = "move";
     this.latestEvent = event;
     this.debug.event(event);
+    this.machine.setBarrelSource(this.pen?.isReady() ? "bridge" : "pointer");
     const effects = this.machine.handle(event);
-    if (effects.length === 0) this.overlay.update(event, this.machine.snapshot());
+    if (effects.length === 0) this.refreshOverlay(event);
     for (const effect of effects) {
       if (effect.type === "suppress-context-menu") raw.preventDefault();
-      this.applyEffect(effect);
+      this.applyEffect(effect, raw);
     }
   }
 
-  private applyEffect(effect: GestureEffect): void {
+  private applyEffect(effect: GestureEffect, raw?: PointerEvent): void {
     this.debug.message(`effect: ${effect.type}`);
     if (this.settings().stylusTestMode) {
       this.debug.message(`test mode suppressed: ${effect.type}`);
-      if (this.latestEvent) this.overlay.update(this.latestEvent, this.machine.snapshot(), effect);
+      this.refreshOverlay();
       return;
     }
     switch (effect.type) {
       case "temporary-tool-start":
         if (!this.savedTool) {
-          const result = this.bridge.startTemporaryEraser();
+          const synthetic =
+            this.settings().eraserStrategy === "synthetic-button5" && raw?.type === "pointerdown";
+          const result =
+            synthetic && raw
+              ? this.bridge.beginMomentaryEraser(raw)
+              : this.bridge.startTemporaryEraser();
           if (result.ok) this.savedTool = result.value;
           else this.machine.temporaryToolDidNotStart();
         }
         break;
+      case "temporary-tool-split": {
+        const event = this.lastPenEvent ?? raw;
+        if (!event) break;
+        const result =
+          this.settings().eraserStrategy === "synthetic-button5"
+            ? this.bridge.splitStrokeToEraser(event, effect.discardStroke)
+            : this.bridge.splitStrokeWithActiveTool(event);
+        if (result.ok) this.savedTool = result.value;
+        else this.machine.temporaryToolDidNotStart();
+        break;
+      }
       case "temporary-tool-end":
-        if (this.savedTool) this.bridge.restoreTool(this.savedTool);
+        if (this.savedTool) {
+          if (this.settings().eraserStrategy === "synthetic-button5") {
+            this.bridge.endMomentaryEraser(this.savedTool);
+          } else this.bridge.restoreTool(this.savedTool);
+        }
         this.savedTool = null;
         break;
       case "button-tap":
@@ -116,7 +184,34 @@ export class StylusController {
       default:
         break;
     }
-    if (this.latestEvent) this.overlay.update(this.latestEvent, this.machine.snapshot(), effect);
+    this.refreshOverlay(this.latestEvent, effect);
+  }
+
+  private refreshOverlay(
+    event: NormalizedStylusEvent | null = this.latestEvent,
+    effect?: GestureEffect
+  ): void {
+    if (!event) return;
+    this.overlay.update(event, this.machine.snapshot(), effect, this.statusLine());
+  }
+
+  private statusLine(): string {
+    const source = describeBarrelSource(this.settings(), this.pen?.isReady() === true);
+    const down = this.pen?.isDown() === true;
+    const latency = this.lastLatency ? ` latency:${this.lastLatency}` : "";
+    return `source:${source} down:${String(down)}${latency}`;
+  }
+
+  private barrelBelievedHeld(raw: PointerEvent): boolean {
+    if (this.pen?.isReady()) return this.pen.isDown();
+    if (this.machine.snapshot().barrelButtonHeld) return true;
+    const settings = this.settings();
+    return (
+      settings.barrelButtonMask === 1 &&
+      settings.primaryContactMode === "hover-only" &&
+      raw.pressure < 0.01 &&
+      (raw.buttons & 1) !== 0
+    );
   }
 
   private gestureSettings() {
@@ -128,6 +223,8 @@ export class StylusController {
       movementThresholdPx: value.movementThresholdPx,
       barrelButtonMask: value.barrelButtonMask,
       primaryContactMode: value.primaryContactMode,
+      lateWindowMs: value.lateWindowMs,
+      midStrokePress: value.midStrokePress,
     } as const;
   }
 }
