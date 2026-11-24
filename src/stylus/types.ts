@@ -22,12 +22,21 @@ export interface NormalizedStylusEvent extends Point {
   isCanvasTarget: boolean;
 }
 
+export type BarrelSource = "pointer" | "bridge";
+
+export interface ExternalButtonInput {
+  down: boolean;
+  /** Performance-timeline milliseconds, comparable with PointerEvent.timeStamp. */
+  pressedAt: number;
+}
+
 export type GestureEffect =
   | { type: "button-tap"; point: Point }
   | { type: "button-double-tap"; point: Point }
   | { type: "button-hold"; point: Point }
   | { type: "temporary-tool-start"; point: Point }
   | { type: "temporary-tool-end" }
+  | { type: "temporary-tool-split"; point: Point; discardStroke: boolean }
   | { type: "suppress-context-menu" }
   | { type: "debug"; message: string };
 
@@ -38,6 +47,8 @@ export interface GestureSettings {
   movementThresholdPx: number;
   barrelButtonMask: 1 | 2 | 4 | 8 | 16 | 32;
   primaryContactMode: "hover-only" | "experimental";
+  lateWindowMs: number;
+  midStrokePress: "split" | "next-contact";
 }
 
 export interface GestureStateSnapshot {

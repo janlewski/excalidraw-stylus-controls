@@ -96,6 +96,16 @@ Legend: `[x]` complete, `[-]` in progress, `[ ]` not started, `[~]` deferred.
 - [ ] Validate AC1–AC13 that remain in 0.1 scope; object-tap-specific coverage
       moves with that feature to 0.2.
 
+## 0.2 bridge client
+
+- [x] Diagnostics section, pen-event probe, bridge reachability check, and Copy diagnostics report.
+- [x] `spen-bridge/1` client: HMAC handshake, heartbeat, and no retry after a bad pairing code.
+- [x] Pairing code stored outside `data.json`, with a fingerprint for comparison.
+- [x] External barrel level, mid-stroke split, late-press window, and release-until-lift.
+- [x] Android mask-1 hover latch no longer fires a tap after repeated eraser strokes.
+- [x] Synthetic `button: 5` momentary eraser, with `setActiveTool` as the fallback.
+- [ ] Device confirmation from tester reports. Jan has no Samsung tablet.
+
 ## Deliberately deferred beyond 0.1
 
 - [~] Object hit-testing, object action menus, connector mode, duplication and

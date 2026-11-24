@@ -1,6 +1,7 @@
 import type { App, WorkspaceLeaf } from "obsidian";
 import { ExcalidrawBridge } from "../excalidraw/ExcalidrawBridge";
 import { DebugLogger } from "../debug/DebugLogger";
+import type { PenSignalHub, RoutedPenTarget } from "../penbridge/PenSignalHub";
 import type { StylusControlsSettings } from "../settings/settings";
 import { StylusController, type ActionHandler } from "./StylusController";
 
@@ -8,6 +9,7 @@ export interface StylusControllerLike {
   attach(): void;
   dispose(): void;
   getTrace(): string;
+  recentMessages?(): string[];
 }
 
 export type StylusControllerFactory = (leaf: WorkspaceLeaf) => StylusControllerLike;
@@ -20,18 +22,25 @@ export class StylusViewRegistry {
     private readonly app: App,
     private readonly settings: () => StylusControlsSettings,
     private readonly actionHandler: ActionHandler,
-    createController?: StylusControllerFactory
+    createController?: StylusControllerFactory,
+    private readonly hooks?: {
+      pen?: PenSignalHub | null;
+      diagnostic?: boolean;
+      onSync?: () => void;
+    }
   ) {
     this.createController =
       createController ??
       ((leaf) => {
-        const debug = new DebugLogger(() => this.settings().debugMode);
+        const debug = new DebugLogger(() => this.settings().debugMode, hooks?.diagnostic === true);
         return new StylusController(
           leaf,
           new ExcalidrawBridge(leaf),
           this.settings,
           debug,
-          this.actionHandler
+          this.actionHandler,
+          window,
+          hooks?.pen ?? null
         );
       });
   }
@@ -49,6 +58,23 @@ export class StylusViewRegistry {
         controller.dispose();
         this.controllers.delete(leaf);
       }
+    this.hooks?.onSync?.();
+  }
+  size(): number {
+    return this.controllers.size;
+  }
+  fallbackTarget(): RoutedPenTarget | null {
+    const active = (this.app.workspace as { activeLeaf?: WorkspaceLeaf }).activeLeaf;
+    const controller = active ? this.controllers.get(active) : undefined;
+    if (controller && "onExternalButton" in controller && "lastPenPoint" in controller) {
+      return controller as unknown as RoutedPenTarget;
+    }
+    return null;
+  }
+  recentMessages(): string[] {
+    return [...this.controllers.values()].flatMap(
+      (controller) => controller.recentMessages?.() ?? []
+    );
   }
   dispose(): void {
     for (const controller of this.controllers.values()) controller.dispose();

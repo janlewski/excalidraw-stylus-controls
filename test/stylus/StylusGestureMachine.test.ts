@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { StylusGestureMachine } from "../../src/stylus/StylusGestureMachine";
-import type { GestureEffect, NormalizedStylusEvent, Scheduler } from "../../src/stylus/types";
+import type {
+  GestureEffect,
+  GestureSettings,
+  NormalizedStylusEvent,
+  Scheduler,
+} from "../../src/stylus/types";
 
 class FakeScheduler implements Scheduler {
   now = 0;
@@ -31,7 +36,8 @@ const event = (
   kind: NormalizedStylusEvent["kind"],
   buttons: number,
   pointerType = "pen",
-  point = { x: 10, y: 12 }
+  point = { x: 10, y: 12 },
+  timestamp = 0
 ): NormalizedStylusEvent => ({
   kind,
   // Existing test calls use 1 as a shorthand for “barrel held”. Encode the
@@ -49,12 +55,15 @@ const event = (
   height: 1,
   x: point.x,
   y: point.y,
-  timestamp: 0,
+  timestamp,
   isCanvasTarget: true,
 });
 const create = (
-  barrelButtonMask: 1 | 2 | 4 | 8 | 16 | 32 = 2,
-  primaryContactMode: "hover-only" | "experimental" = "hover-only"
+  barrelButtonMask: GestureSettings["barrelButtonMask"] = 2,
+  primaryContactMode: GestureSettings["primaryContactMode"] = "hover-only",
+  extra: Partial<
+    Pick<GestureSettings, "lateWindowMs" | "midStrokePress" | "buttonContactAction">
+  > = {}
 ) => {
   const scheduler = new FakeScheduler();
   const machine = new StylusGestureMachine(
@@ -65,6 +74,9 @@ const create = (
       movementThresholdPx: 8,
       barrelButtonMask,
       primaryContactMode,
+      lateWindowMs: 40,
+      midStrokePress: "split",
+      ...extra,
     },
     scheduler
   );
@@ -216,5 +228,138 @@ describe("StylusGestureMachine", () => {
     machine.temporaryToolDidNotStart();
     expect(machine.snapshot().temporaryToolActive).toBe(false);
     expect(machine.handle(event("up", 0))).toEqual([]);
+  });
+
+  it("starts the eraser when the bridge barrel is already down at contact", () => {
+    const { machine } = create();
+    machine.setBarrelSource("bridge");
+    machine.handle(event("move", 0));
+    expect(machine.handleExternalButton({ down: true, pressedAt: 0 })).toEqual([]);
+    expect(machine.handle(event("down", 0, "pen", { x: 10, y: 12 }, 1000))).toEqual([
+      { type: "temporary-tool-start", point: { x: 10, y: 12 } },
+    ]);
+  });
+
+  it("splits a stroke when the bridge button arrives after the late window", () => {
+    const { machine } = create();
+    machine.setBarrelSource("bridge");
+    machine.handle(event("down", 0, "pen", { x: 4, y: 6 }, 1000));
+    expect(machine.handleExternalButton({ down: true, pressedAt: 1200 })).toEqual([
+      { type: "temporary-tool-split", point: { x: 4, y: 6 }, discardStroke: false },
+    ]);
+  });
+
+  it("discards the dot when the press lands inside the late window", () => {
+    const { machine } = create();
+    machine.setBarrelSource("bridge");
+    machine.handle(event("down", 0, "pen", { x: 4, y: 6 }, 1000));
+    expect(machine.handleExternalButton({ down: true, pressedAt: 1020 })).toEqual([
+      { type: "temporary-tool-split", point: { x: 4, y: 6 }, discardStroke: true },
+    ]);
+  });
+
+  it("discards the dot when the press time is earlier than contact", () => {
+    const { machine } = create();
+    machine.setBarrelSource("bridge");
+    machine.handle(event("down", 0, "pen", { x: 4, y: 6 }, 1000));
+    expect(machine.handleExternalButton({ down: true, pressedAt: 990 })[0]).toMatchObject({
+      type: "temporary-tool-split",
+      discardStroke: true,
+    });
+  });
+
+  it("keeps erasing until lift when the barrel is released mid-stroke", () => {
+    const { machine, scheduler, effects } = create();
+    machine.setBarrelSource("bridge");
+    machine.handle(event("move", 0));
+    machine.handleExternalButton({ down: true, pressedAt: 0 });
+    expect(machine.handle(event("down", 0)).map((effect) => effect.type)).toEqual([
+      "temporary-tool-start",
+    ]);
+    expect(machine.handleExternalButton({ down: false, pressedAt: 80 })).toEqual([]);
+    expect(machine.snapshot().temporaryToolActive).toBe(true);
+    expect(machine.handle(event("up", 0)).map((effect) => effect.type)).toEqual([
+      "temporary-tool-end",
+    ]);
+    scheduler.advance(500);
+    expect(effects).toEqual([]);
+  });
+
+  it("repeats eraser strokes while the bridge button stays down and does not tap", () => {
+    const { machine, scheduler, effects } = create();
+    machine.setBarrelSource("bridge");
+    machine.handleExternalButton({ down: true, pressedAt: 0 });
+    expect(machine.handle(event("down", 0)).map((effect) => effect.type)).toEqual([
+      "temporary-tool-start",
+    ]);
+    expect(machine.handle(event("up", 0)).map((effect) => effect.type)).toEqual([
+      "temporary-tool-end",
+    ]);
+    expect(machine.handle(event("down", 0)).map((effect) => effect.type)).toEqual([
+      "temporary-tool-start",
+    ]);
+    expect(machine.handle(event("up", 0)).map((effect) => effect.type)).toEqual([
+      "temporary-tool-end",
+    ]);
+    expect(machine.handleExternalButton({ down: false, pressedAt: 500 })).toEqual([]);
+    scheduler.advance(500);
+    expect(effects).toEqual([]);
+  });
+
+  it("emits a hover tap from bridge press and release", () => {
+    const { machine, scheduler, effects } = create();
+    machine.setBarrelSource("bridge");
+    machine.handle(event("move", 0));
+    machine.handleExternalButton({ down: true, pressedAt: 0 });
+    machine.handleExternalButton({ down: false, pressedAt: 20 });
+    scheduler.advance(299);
+    expect(effects).toEqual([]);
+    scheduler.advance(1);
+    expect(effects).toEqual([{ type: "button-tap", point: { x: 10, y: 12 } }]);
+  });
+
+  it("waits for the next contact when mid-stroke press is deferred", () => {
+    const { machine } = create(2, "hover-only", { midStrokePress: "next-contact" });
+    machine.setBarrelSource("bridge");
+    machine.handle(event("down", 0, "pen", { x: 1, y: 1 }, 1000));
+    expect(machine.handleExternalButton({ down: true, pressedAt: 1200 })).toEqual([]);
+    expect(machine.handle(event("up", 0))).toEqual([]);
+    expect(machine.handle(event("down", 0)).map((effect) => effect.type)).toEqual([
+      "temporary-tool-start",
+    ]);
+  });
+
+  it("emits nothing when the barrel source changes while the button is held", () => {
+    const { machine, scheduler, effects } = create();
+    machine.handle(event("move", 1));
+    machine.setBarrelSource("bridge");
+    scheduler.advance(500);
+    expect(effects).toEqual([]);
+    expect(machine.snapshot().barrelButtonHeld).toBe(false);
+  });
+
+  it("does not tap after repeated mask-1 hover-latch strokes", () => {
+    const { machine, scheduler, effects } = create(1);
+    const raw = (kind: NormalizedStylusEvent["kind"], buttons: number): NormalizedStylusEvent => ({
+      ...event(kind, 0),
+      buttons,
+    });
+    machine.handle(raw("move", 1));
+    expect(machine.handle(raw("down", 1)).map((effect) => effect.type)).toEqual([
+      "temporary-tool-start",
+    ]);
+    expect(machine.handle(raw("up", 0)).map((effect) => effect.type)).toEqual([
+      "temporary-tool-end",
+    ]);
+    machine.handle(raw("move", 1));
+    expect(machine.handle(raw("down", 1)).map((effect) => effect.type)).toEqual([
+      "temporary-tool-start",
+    ]);
+    expect(machine.handle(raw("up", 0)).map((effect) => effect.type)).toEqual([
+      "temporary-tool-end",
+    ]);
+    expect(machine.handle(raw("move", 0))).toEqual([]);
+    scheduler.advance(500);
+    expect(effects).toEqual([]);
   });
 });

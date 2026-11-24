@@ -3,3 +3,12 @@ export class Notice {
     void message;
   }
 }
+
+export const Platform = {
+  isAndroidApp: false,
+  isTablet: false,
+  isMobile: false,
+  isDesktopApp: true,
+};
+
+export const apiVersion = "1.6.0";

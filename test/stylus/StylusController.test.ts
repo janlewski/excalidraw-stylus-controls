@@ -44,14 +44,17 @@ class FakeBridge {
   }
 }
 
-function create(settings = DEFAULT_SETTINGS) {
+function create(
+  settings = DEFAULT_SETTINGS,
+  strategy: (typeof DEFAULT_SETTINGS)["eraserStrategy"] = "set-active-tool"
+) {
   const container = new FakeContainer();
   const bridge = new FakeBridge();
   const leaf = { view: { containerEl: container } };
   const controller = new StylusController(
     leaf as never,
     bridge as never,
-    () => settings,
+    () => ({ ...settings, eraserStrategy: strategy }),
     new DebugLogger(() => false),
     () => undefined,
     scheduler

@@ -77,6 +77,24 @@ For each case, capture a trace and record pass/fail plus observations.
 Repeat temporary-eraser testing while free draw, rectangle, arrow, text, and
 selection are active. The exact prior active-tool data must restore after lift.
 
+## Bridge and hover-latch cases
+
+Use a new empty drawing. After each part, run **Copy diagnostics report** and paste it with one line about what happened. No developer console is required.
+
+| Case                   | Steps                                                                        | Expected                                                                           |
+| ---------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Probe                  | Hover the settings probe, press the side button, then draw while holding it. | Pen seen: yes. Note `buttons` while hovering and while touching.                   |
+| Hover latch, no bridge | Hover with the button held, draw, lift. Repeat three times, then release.    | Each stroke erases. The menu does not open at the end.                             |
+| Hover tap              | Tap the side button once while hovering.                                     | The stylus menu opens. No stray line appears.                                      |
+| Bridge check           | Diagnostics → Check bridge connection.                                       | Every line through Source is ok, or the verdict says why it is not.                |
+| Press before contact   | Hold the button, then draw.                                                  | Eraser only, no ink dot. Previous tool returns on lift.                            |
+| Press mid-stroke       | Start a line, press halfway.                                                 | Ink so far stays. The rest of that contact erases.                                 |
+| Release mid-stroke     | Start erasing, release the button before lift.                               | Keeps erasing until lift. The next stroke draws.                                   |
+| Quick press            | Press as you touch, 20 times.                                                | At most 2 leftover ink dots.                                                       |
+| Two panes              | Two drawings side by side.                                                   | Only the drawing under the pen changes tool.                                       |
+| Bridge dies            | Stop Shizuku while holding the button.                                       | Status shows pen unavailable or disconnected. The next lift restores the pen tool. |
+| Mouse and touch        | Pan, zoom, and use a mouse if you have one.                                  | Unchanged.                                                                         |
+
 ## Report template
 
 ```text

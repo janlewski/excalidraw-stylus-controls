@@ -9,7 +9,12 @@ export class DebugOverlay {
     private readonly enabled: () => boolean
   ) {}
 
-  update(event: NormalizedStylusEvent, state: GestureStateSnapshot, effect?: GestureEffect): void {
+  update(
+    event: NormalizedStylusEvent,
+    state: GestureStateSnapshot,
+    effect?: GestureEffect,
+    statusLine?: string
+  ): void {
     if (!this.enabled()) {
       this.close();
       return;
@@ -27,7 +32,10 @@ export class DebugOverlay {
         `tilt:${event.tiltX},${event.tiltY} twist:${event.twist} tangential:${event.tangentialPressure.toFixed(2)} size:${event.width}x${event.height}`,
         stateSummary,
         `effect:${effect?.type ?? "none"}`,
-      ].join("\n")
+        statusLine ?? "",
+      ]
+        .filter((line) => line.length > 0)
+        .join("\n")
     );
   }
 

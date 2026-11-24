@@ -29,6 +29,17 @@ gesture mappings. The default barrel mapping follows Pointer Events
 device reports a different bit. This project has not yet been physically
 validated on a Samsung device.
 
+## Mid-stroke eraser with the Android bridge
+
+On a Samsung tablet the WebView reports the side button as `buttons: 1`, which is the same bit as pen contact. Pointer Events therefore cannot see a barrel press that starts after the pen is already touching the screen. The companion app `excalidraw-spen-bridge` reads that button from the kernel and sends the level to this plugin on `ws://127.0.0.1:47631/v1/pen`.
+
+1. Install the bridge APK and [Shizuku](https://shizuku.rikka.app/). Start Shizuku with Wireless debugging (any Wi-Fi network; a PC is not required) and grant this bridge access.
+2. In the bridge, copy the pairing code. In this plugin, enable the bridge and paste the code. The fingerprint under the field must match the bridge.
+3. Turn off Samsung Air command (Settings → Advanced features → S Pen → Air command). A hover press can otherwise open that panel instead of reaching Obsidian.
+4. Hold the side button and draw: the stroke is an eraser, including when you press halfway through a line. Releasing the button mid-stroke keeps erasing until you lift. The previous tool comes back on lift.
+
+If the bridge is not connected, Android falls back to a hover latch: the side button must already be down while the pen is hovering, and the whole next stroke erases. A press that begins after contact does not. Diagnostics → Check bridge connection explains which path is active. The report never includes the pairing code. See [the tester guide](docs/TESTER-GUIDE.md) and [the wire protocol](docs/PEN_BRIDGE_PROTOCOL.md).
+
 ## Install for testing
 
 Build the plugin, then copy `main.js`, `manifest.json`, and `styles.css` into

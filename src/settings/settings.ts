@@ -1,6 +1,10 @@
+import { Platform } from "obsidian";
+
 export type StylusAction = "menu" | "copy" | "paste" | "none";
 export type BarrelButtonMask = 1 | 2 | 4 | 8 | 16 | 32;
 export type PrimaryContactMode = "hover-only" | "experimental";
+export type MidStrokePress = "split" | "next-contact";
+export type EraserStrategy = "synthetic-button5" | "set-active-tool";
 
 export interface StylusControlsSettings {
   buttonTapAction: StylusAction;
@@ -18,6 +22,12 @@ export interface StylusControlsSettings {
   stylusTestMode: boolean;
   debugMode: boolean;
   debugOverlay: boolean;
+  penBridgeEnabled: boolean;
+  penBridgePort: number;
+  lateWindowMs: number;
+  midStrokePress: MidStrokePress;
+  eraserStrategy: EraserStrategy;
+  suppressHoverButtonEvents: boolean;
 }
 
 export const DEFAULT_SETTINGS: StylusControlsSettings = {
@@ -34,15 +44,28 @@ export const DEFAULT_SETTINGS: StylusControlsSettings = {
   stylusTestMode: false,
   debugMode: false,
   debugOverlay: false,
+  penBridgeEnabled: false,
+  penBridgePort: 47631,
+  lateWindowMs: 40,
+  midStrokePress: "split",
+  eraserStrategy: "synthetic-button5",
+  suppressHoverButtonEvents: true,
 };
 
 export const NUMERIC_SETTING_LIMITS = {
   doubleTapMs: { min: 100, max: 1000 },
   longPressMs: { min: 150, max: 2000 },
   movementThresholdPx: { min: 1, max: 100 },
+  lateWindowMs: { min: 0, max: 100 },
 } as const;
 
 export type NumericSettingKey = keyof typeof NUMERIC_SETTING_LIMITS;
+
+export interface SettingsPlatform {
+  android: boolean;
+}
+
+const BARREL_MASKS: readonly BarrelButtonMask[] = [1, 2, 4, 8, 16, 32];
 
 export function parseNumericSetting(key: NumericSettingKey, value: string): number | null {
   const parsed = Number(value);
@@ -50,7 +73,21 @@ export function parseNumericSetting(key: NumericSettingKey, value: string): numb
   return Number.isInteger(parsed) && parsed >= min && parsed <= max ? parsed : null;
 }
 
-export function normalizeSettings(value: Partial<StylusControlsSettings>): StylusControlsSettings {
+export function describeBarrelSource(
+  settings: { barrelButtonMask: number; primaryContactMode: string },
+  bridgeReady: boolean
+): string {
+  if (bridgeReady) return "bridge";
+  if (settings.barrelButtonMask === 1 && settings.primaryContactMode === "hover-only") {
+    return "hover-latch";
+  }
+  return `pointer mask ${settings.barrelButtonMask}`;
+}
+
+export function normalizeSettings(
+  value: Partial<StylusControlsSettings>,
+  platform: SettingsPlatform = { android: Platform.isAndroidApp }
+): StylusControlsSettings {
   const action = (candidate: unknown, fallback: StylusAction): StylusAction =>
     candidate === "menu" || candidate === "copy" || candidate === "paste" || candidate === "none"
       ? candidate
@@ -59,6 +96,8 @@ export function normalizeSettings(value: Partial<StylusControlsSettings>): Stylu
     typeof candidate === "number" && Number.isFinite(candidate)
       ? Math.min(max, Math.max(min, Math.round(candidate)))
       : fallback;
+  const maskWasUnset = value.barrelButtonMask === undefined;
+  const explicitMask = BARREL_MASKS.find((mask) => mask === value.barrelButtonMask);
   return {
     buttonTapAction: action(value.buttonTapAction, DEFAULT_SETTINGS.buttonTapAction),
     buttonDoubleTapAction: action(
@@ -86,16 +125,22 @@ export function normalizeSettings(value: Partial<StylusControlsSettings>): Stylu
       NUMERIC_SETTING_LIMITS.movementThresholdPx.max
     ),
     barrelButtonMask:
-      value.barrelButtonMask === 1 ||
-      value.barrelButtonMask === 4 ||
-      value.barrelButtonMask === 8 ||
-      value.barrelButtonMask === 16 ||
-      value.barrelButtonMask === 32
-        ? value.barrelButtonMask
-        : DEFAULT_SETTINGS.barrelButtonMask,
+      explicitMask ?? (platform.android && maskWasUnset ? 1 : DEFAULT_SETTINGS.barrelButtonMask),
     primaryContactMode: value.primaryContactMode === "experimental" ? "experimental" : "hover-only",
     stylusTestMode: value.stylusTestMode === true,
     debugMode: value.debugMode === true,
     debugOverlay: value.debugOverlay === true,
+    penBridgeEnabled: value.penBridgeEnabled === true,
+    penBridgePort: number(value.penBridgePort, 47631, 1024, 65535),
+    lateWindowMs: number(
+      value.lateWindowMs,
+      40,
+      NUMERIC_SETTING_LIMITS.lateWindowMs.min,
+      NUMERIC_SETTING_LIMITS.lateWindowMs.max
+    ),
+    midStrokePress: value.midStrokePress === "next-contact" ? "next-contact" : "split",
+    eraserStrategy:
+      value.eraserStrategy === "set-active-tool" ? "set-active-tool" : "synthetic-button5",
+    suppressHoverButtonEvents: value.suppressHoverButtonEvents !== false,
   };
 }
