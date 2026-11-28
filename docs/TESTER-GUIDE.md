@@ -25,14 +25,14 @@ You need a Samsung tablet, Shizuku started, and the bridge app running. Turn off
 
 8. **Check bridge connection**. If any line is not ok, copy the report and stop. The verdict line says why.
 9. Paste the pairing code and compare fingerprints. Live status says ready, and a side-button press shows a latency.
-10. Hold the button, then draw. There is no ink dot. Lift, and the previous tool is back. Try the pen tool and the rectangle tool.
-11. Start a line and press the button halfway. The line so far stays. The rest of the same stroke erases.
-12. Start while holding the button, then let go of the button before you lift. It keeps erasing until you lift. The next stroke draws.
-13. Press the button at almost the same moment you touch, 20 times. Count leftover ink dots. The target is at most 2.
-14. A hover tap opens the menu. Double tap and hold show their notices.
+10. Draw a stroke with the pen tool. Hold the side button, then tap that stroke. The whole stroke disappears, and Excalidraw's right-click menu does not open. Lift, and the previous tool is back. Try the same tap with the rectangle tool selected.
+11. Hold the button and drag across several strokes. Those strokes erase. You do not have to be drawing already.
+12. Start a line and press the button halfway. The line so far stays. The rest of the same stroke erases.
+13. Start while holding the button, then let go of the button before you lift. It keeps erasing until you lift. The next stroke draws.
+14. Hover and tap the button once. The stylus menu opens. Hover and double-tap the button. Excalidraw's right-click menu opens at the pen. A single barrel press does not open that menu.
 15. Two drawings side by side: only the one under the pen changes tool.
 16. Stop Shizuku, or force-stop the bridge, while holding the button. Status shows the pen is unavailable or the bridge is disconnected. The next lift returns the pen tool. Start them again and the status returns to ready within about 5 seconds. Leaving Obsidian and coming back reconnects right away.
 17. Finger pan and zoom still work. A mouse, if you have one, still works.
-18. Copy the report and note which of 10–13 worked, and how many dots you saw in 13.
+18. Copy the report and note which of 10–14 worked.
 
 The report does not contain your pairing code, vault name, note text, or where you touched the screen.

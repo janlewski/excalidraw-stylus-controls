@@ -1,6 +1,6 @@
 import { Platform } from "obsidian";
 
-export type StylusAction = "menu" | "copy" | "paste" | "none";
+export type StylusAction = "menu" | "context-menu" | "copy" | "paste" | "none";
 export type BarrelButtonMask = 1 | 2 | 4 | 8 | 16 | 32;
 export type PrimaryContactMode = "hover-only" | "experimental";
 export type MidStrokePress = "split" | "next-contact";
@@ -28,12 +28,14 @@ export interface StylusControlsSettings {
   midStrokePress: MidStrokePress;
   eraserStrategy: EraserStrategy;
   suppressHoverButtonEvents: boolean;
+  /** Bumped when a default gesture changes, so an older saved mapping can move once. */
+  gestureRevision: number;
 }
 
 export const DEFAULT_SETTINGS: StylusControlsSettings = {
   buttonTapAction: "menu",
-  buttonDoubleTapAction: "copy",
-  buttonHoldAction: "paste",
+  buttonDoubleTapAction: "context-menu",
+  buttonHoldAction: "none",
   buttonContactAction: "eraser",
   doubleTapMs: 300,
   longPressMs: 450,
@@ -50,6 +52,7 @@ export const DEFAULT_SETTINGS: StylusControlsSettings = {
   midStrokePress: "split",
   eraserStrategy: "synthetic-button5",
   suppressHoverButtonEvents: true,
+  gestureRevision: 2,
 };
 
 export const NUMERIC_SETTING_LIMITS = {
@@ -89,7 +92,11 @@ export function normalizeSettings(
   platform: SettingsPlatform = { android: Platform.isAndroidApp }
 ): StylusControlsSettings {
   const action = (candidate: unknown, fallback: StylusAction): StylusAction =>
-    candidate === "menu" || candidate === "copy" || candidate === "paste" || candidate === "none"
+    candidate === "menu" ||
+    candidate === "context-menu" ||
+    candidate === "copy" ||
+    candidate === "paste" ||
+    candidate === "none"
       ? candidate
       : fallback;
   const number = (candidate: unknown, fallback: number, min: number, max: number): number =>
@@ -98,13 +105,21 @@ export function normalizeSettings(
       : fallback;
   const maskWasUnset = value.barrelButtonMask === undefined;
   const explicitMask = BARREL_MASKS.find((mask) => mask === value.barrelButtonMask);
+  const storedRevision = value.gestureRevision === 2 ? 2 : 0;
+  const doubleTap = action(value.buttonDoubleTapAction, DEFAULT_SETTINGS.buttonDoubleTapAction);
+  const hold = action(value.buttonHoldAction, DEFAULT_SETTINGS.buttonHoldAction);
   return {
     buttonTapAction: action(value.buttonTapAction, DEFAULT_SETTINGS.buttonTapAction),
-    buttonDoubleTapAction: action(
-      value.buttonDoubleTapAction,
-      DEFAULT_SETTINGS.buttonDoubleTapAction
-    ),
-    buttonHoldAction: action(value.buttonHoldAction, DEFAULT_SETTINGS.buttonHoldAction),
+    buttonDoubleTapAction:
+      storedRevision < 2 &&
+      (value.buttonDoubleTapAction === undefined || value.buttonDoubleTapAction === "copy")
+        ? "context-menu"
+        : doubleTap,
+    buttonHoldAction:
+      storedRevision < 2 &&
+      (value.buttonHoldAction === undefined || value.buttonHoldAction === "paste")
+        ? "none"
+        : hold,
     buttonContactAction: value.buttonContactAction === "none" ? "none" : "eraser",
     doubleTapMs: number(
       value.doubleTapMs,
@@ -142,5 +157,6 @@ export function normalizeSettings(
     eraserStrategy:
       value.eraserStrategy === "set-active-tool" ? "set-active-tool" : "synthetic-button5",
     suppressHoverButtonEvents: value.suppressHoverButtonEvents !== false,
+    gestureRevision: 2,
   };
 }

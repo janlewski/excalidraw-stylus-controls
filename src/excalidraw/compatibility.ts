@@ -5,12 +5,22 @@ export interface ActiveToolSnapshot {
 
 export interface SceneElementLike {
   id?: string;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  angle?: number;
+  isDeleted?: boolean;
+  locked?: boolean;
 }
 
 export interface AppStateLike {
   activeTool?: ActiveToolSnapshot;
   newElement?: { id?: string } | null;
   draggingElement?: { id?: string } | null;
+  scrollX?: number;
+  scrollY?: number;
+  zoom?: { value?: number } | number;
 }
 
 export interface ImperativeApi {

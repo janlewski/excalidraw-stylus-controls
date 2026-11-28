@@ -104,6 +104,7 @@ Legend: `[x]` complete, `[-]` in progress, `[ ]` not started, `[~]` deferred.
 - [x] External barrel level, mid-stroke split, late-press window, and release-until-lift.
 - [x] Android mask-1 hover latch no longer fires a tap after repeated eraser strokes.
 - [x] Synthetic `button: 5` momentary eraser, with `setActiveTool` as the fallback.
+- [x] Samsung Notes mapping: barrel-held tap deletes the stroke, barrel-held drag erases along the pen, and a hover double-tap opens the right-click menu. A barrel press no longer opens that menu.
 - [ ] Device confirmation from tester reports. Jan has no Samsung tablet.
 
 ## Deliberately deferred beyond 0.1

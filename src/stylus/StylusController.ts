@@ -4,17 +4,17 @@ import type { DebugLogger } from "../debug/DebugLogger";
 import { DebugOverlay } from "../debug/DebugOverlay";
 import type { PenButtonSignal } from "../penbridge/PenBridgeClient";
 import type { PenSignalHub } from "../penbridge/PenSignalHub";
-import { describeBarrelSource, type StylusControlsSettings } from "../settings/settings";
+import {
+  describeBarrelSource,
+  type StylusAction,
+  type StylusControlsSettings,
+} from "../settings/settings";
 import { isSynthetic } from "../excalidraw/syntheticPointer";
 import { classifyPenEvent, normalizePointerEvent } from "./normalizePointerEvent";
 import { StylusGestureMachine } from "./StylusGestureMachine";
 import type { GestureEffect, NormalizedStylusEvent, Point, Scheduler } from "./types";
 
-export type ActionHandler = (
-  action: "menu" | "copy" | "paste" | "none",
-  point: Point,
-  bridge: ExcalidrawBridge
-) => void;
+export type ActionHandler = (action: StylusAction, point: Point, bridge: ExcalidrawBridge) => void;
 
 export class StylusController {
   private readonly machine: StylusGestureMachine;
@@ -25,6 +25,8 @@ export class StylusController {
   private readonly overlay: DebugOverlay;
   private latestEvent: NormalizedStylusEvent | null = null;
   private lastPenEvent: PointerEvent | null = null;
+  private lastPointerWasPen = false;
+  private priorSceneIds: ReadonlySet<string> | null = null;
   lastPenActivityAt = 0;
   private lastLatency: string | null = null;
 
@@ -34,7 +36,7 @@ export class StylusController {
     private readonly settings: () => StylusControlsSettings,
     private readonly debug: DebugLogger,
     private readonly dispatchAction: ActionHandler,
-    scheduler: Scheduler = window,
+    private readonly scheduler: Scheduler = window,
     private readonly pen: PenSignalHub | null = null,
     private readonly now: () => number = () => performance.now()
   ) {
@@ -108,7 +110,15 @@ export class StylusController {
 
   private onPointerEvent(raw: PointerEvent): void {
     if (isSynthetic(raw)) return;
-    if (raw.pointerType !== "pen") return;
+    if (raw.type === "contextmenu") {
+      this.onContextMenu(raw);
+      return;
+    }
+    if (raw.pointerType !== "pen") {
+      this.lastPointerWasPen = false;
+      return;
+    }
+    this.lastPointerWasPen = true;
     this.lastPenEvent = raw;
     this.lastPenActivityAt = this.now();
     const held = this.barrelBelievedHeld(raw);
@@ -124,13 +134,38 @@ export class StylusController {
     if (phase === "hover-button") event.kind = "move";
     this.latestEvent = event;
     this.debug.event(event);
+    if (event.kind === "down") this.priorSceneIds = this.bridge.currentSceneIds();
     this.machine.setBarrelSource(this.pen?.isReady() ? "bridge" : "pointer");
     const effects = this.machine.handle(event);
     if (effects.length === 0) this.refreshOverlay(event);
-    for (const effect of effects) {
-      if (effect.type === "suppress-context-menu") raw.preventDefault();
+    for (const effect of effects) this.applyEffect(effect, raw);
+  }
+
+  /**
+   * Android delivers the barrel button as a MouseEvent contextmenu, often with
+   * no pointerType. That is the right-click Samsung Notes does not use for erase.
+   */
+  private onContextMenu(raw: PointerEvent): void {
+    const pointerType = raw.pointerType;
+    if (pointerType === "mouse" || pointerType === "touch") return;
+    if (pointerType !== "pen" && !this.lastPointerWasPen) return;
+    const event = normalizePointerEvent(
+      raw,
+      this.leaf.view.containerEl.contains(raw.target as Node)
+    );
+    event.pointerType = "pen";
+    event.kind = "contextmenu";
+    this.machine.setBarrelSource(this.pen?.isReady() ? "bridge" : "pointer");
+    for (const effect of this.machine.handle(event)) {
+      if (effect.type === "suppress-context-menu") this.blockContextMenu(raw);
       this.applyEffect(effect, raw);
     }
+  }
+
+  private blockContextMenu(raw: Event): void {
+    raw.preventDefault();
+    raw.stopPropagation();
+    if (typeof raw.stopImmediatePropagation === "function") raw.stopImmediatePropagation();
   }
 
   private applyEffect(effect: GestureEffect, raw?: PointerEvent): void {
@@ -172,6 +207,15 @@ export class StylusController {
         }
         this.savedTool = null;
         break;
+      case "erase-tap": {
+        const prior = this.priorSceneIds;
+        const point = effect.point;
+        this.scheduler.setTimeout(() => {
+          if (this.disposed) return;
+          this.bridge.eraseStrokeAt(point, prior);
+        }, 0);
+        break;
+      }
       case "button-tap":
         this.dispatchAction(this.settings().buttonTapAction, effect.point, this.bridge);
         break;

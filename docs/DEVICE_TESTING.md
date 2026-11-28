@@ -63,9 +63,10 @@ For each case, capture a trace and record pass/fail plus observations.
 | Case                    | Steps                                                                               | Expected result                                                                          |
 | ----------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | Hover tap               | Hover, press/release side button once.                                              | Default menu opens after the double-tap interval; no canvas mark.                        |
-| Hover double tap        | Hover, press/release side button twice inside configured interval.                  | Copy action only; no menu/tap action.                                                    |
-| Hover hold              | Hover, hold button past long-press delay.                                           | Paste action only; no tap action upon release.                                           |
-| Temporary eraser        | Select free draw, hover with side button held, contact, make a stroke, lift.        | Eraser begins on contact; free draw restores immediately on lift, before barrel release. |
+| Hover double tap        | Hover, press/release side button twice inside configured interval.                  | Excalidraw's right-click menu opens at the pen. No tool menu and no eraser.              |
+| Hover hold              | Hover, hold the button past the long-press delay, then release without touching.    | Nothing happens. Holding the button and then touching erases and does not fire the hold. |
+| Barrel tap eraser       | Draw a stroke. Hold the side button and tap that stroke.                            | The whole stroke is deleted. The right-click menu does not open.                         |
+| Temporary eraser        | Select free draw, hover with side button held, drag, lift.                          | Eraser begins on contact; free draw restores immediately on lift, before barrel release. |
 | Repeated eraser strokes | Keep barrel held after lifting, contact/lift twice more, then release.              | Each contact enters/exits eraser; final release does not fire tap, double tap, or hold.  |
 | Contact before hold     | Hold side button and contact before long-press delay.                               | Temporary eraser path wins; paste/hold never fires.                                      |
 | Cancel/interruption     | Start temporary eraser, then trigger an interruption/cancel path or close the pane. | Previous tool restores; no stuck eraser.                                                 |
@@ -81,19 +82,19 @@ selection are active. The exact prior active-tool data must restore after lift.
 
 Use a new empty drawing. After each part, run **Copy diagnostics report** and paste it with one line about what happened. No developer console is required.
 
-| Case                   | Steps                                                                        | Expected                                                                           |
-| ---------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Probe                  | Hover the settings probe, press the side button, then draw while holding it. | Pen seen: yes. Note `buttons` while hovering and while touching.                   |
-| Hover latch, no bridge | Hover with the button held, draw, lift. Repeat three times, then release.    | Each stroke erases. The menu does not open at the end.                             |
-| Hover tap              | Tap the side button once while hovering.                                     | The stylus menu opens. No stray line appears.                                      |
-| Bridge check           | Diagnostics → Check bridge connection.                                       | Every line through Source is ok, or the verdict says why it is not.                |
-| Press before contact   | Hold the button, then draw.                                                  | Eraser only, no ink dot. Previous tool returns on lift.                            |
-| Press mid-stroke       | Start a line, press halfway.                                                 | Ink so far stays. The rest of that contact erases.                                 |
-| Release mid-stroke     | Start erasing, release the button before lift.                               | Keeps erasing until lift. The next stroke draws.                                   |
-| Quick press            | Press as you touch, 20 times.                                                | At most 2 leftover ink dots.                                                       |
-| Two panes              | Two drawings side by side.                                                   | Only the drawing under the pen changes tool.                                       |
-| Bridge dies            | Stop Shizuku while holding the button.                                       | Status shows pen unavailable or disconnected. The next lift restores the pen tool. |
-| Mouse and touch        | Pan, zoom, and use a mouse if you have one.                                  | Unchanged.                                                                         |
+| Case                   | Steps                                                                        | Expected                                                                                         |
+| ---------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Probe                  | Hover the settings probe, press the side button, then draw while holding it. | Pen seen: yes. Note `buttons` while hovering and while touching.                                 |
+| Hover latch, no bridge | Hover with the button held, draw, lift. Repeat three times, then release.    | Each stroke erases. The menu does not open at the end.                                           |
+| Hover tap              | Tap the side button once while hovering.                                     | The stylus menu opens. No stray line appears.                                                    |
+| Bridge check           | Diagnostics → Check bridge connection.                                       | Every line through Source is ok, or the verdict says why it is not.                              |
+| Press before contact   | Hold the button, then tap an existing stroke. Drag across others.            | The tap deletes that stroke and does not open the right-click menu. A drag erases along the pen. |
+| Press mid-stroke       | Start a line, press halfway.                                                 | Ink so far stays. The rest of that contact erases.                                               |
+| Release mid-stroke     | Start erasing, release the button before lift.                               | Keeps erasing until lift. The next stroke draws.                                                 |
+| Quick press            | Press as you touch, 20 times.                                                | At most 2 leftover ink dots.                                                                     |
+| Two panes              | Two drawings side by side.                                                   | Only the drawing under the pen changes tool.                                                     |
+| Bridge dies            | Stop Shizuku while holding the button.                                       | Status shows pen unavailable or disconnected. The next lift restores the pen tool.               |
+| Mouse and touch        | Pan, zoom, and use a mouse if you have one.                                  | Unchanged.                                                                                       |
 
 ## Report template
 
