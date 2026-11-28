@@ -37,6 +37,18 @@ describe("barrel button signal setting", () => {
     expect(normalizeSettings({}, { android: true }).primaryContactMode).toBe("hover-only");
     expect(normalizeSettings({ barrelButtonMask: 2 }, { android: true }).barrelButtonMask).toBe(2);
     expect(normalizeSettings({}).penBridgeEnabled).toBe(false);
+    expect(normalizeSettings({}).buttonDoubleTapAction).toBe("context-menu");
+    expect(normalizeSettings({ buttonDoubleTapAction: "copy" }).buttonDoubleTapAction).toBe(
+      "context-menu"
+    );
+    expect(
+      normalizeSettings({ buttonDoubleTapAction: "copy", gestureRevision: 2 }).buttonDoubleTapAction
+    ).toBe("copy");
+    expect(normalizeSettings({}).buttonHoldAction).toBe("none");
+    expect(normalizeSettings({ buttonHoldAction: "paste" }).buttonHoldAction).toBe("none");
+    expect(
+      normalizeSettings({ buttonHoldAction: "paste", gestureRevision: 2 }).buttonHoldAction
+    ).toBe("paste");
     expect(normalizeSettings({ lateWindowMs: 40 }).lateWindowMs).toBe(40);
     expect(normalizeSettings({ lateWindowMs: 500 }).lateWindowMs).toBe(100);
     expect(normalizeSettings({})).not.toHaveProperty("pairingCode");

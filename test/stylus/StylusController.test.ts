@@ -38,6 +38,12 @@ class FakeBridge {
     this.startCalls += 1;
     return this.startResult;
   }
+  currentSceneIds(): ReadonlySet<string> {
+    return new Set();
+  }
+  eraseStrokeAt(): BridgeResult<void> {
+    return { ok: true, value: undefined };
+  }
   restoreTool(tool: ActiveToolSnapshot): BridgeResult<void> {
     this.restoreCalls.push(tool);
     return { ok: true, value: undefined };
@@ -128,6 +134,61 @@ describe("StylusController lifecycle", () => {
     controller["onPointerEvent"](pen("pointerup", 0));
     expect(bridge.startCalls).toBe(0);
     expect(bridge.restoreCalls).toEqual([]);
+  });
+
+  it("blocks the barrel right-click that follows a pen event", () => {
+    const { controller } = create();
+    let blocked = false;
+    controller["onPointerEvent"](pen("pointerdown", 1));
+    controller["onPointerEvent"]({
+      type: "contextmenu",
+      pointerType: "",
+      button: 2,
+      buttons: 2,
+      clientX: 12,
+      clientY: 18,
+      timeStamp: 50,
+      target: null,
+      preventDefault: () => {
+        blocked = true;
+      },
+      stopPropagation: () => undefined,
+      stopImmediatePropagation: () => undefined,
+    } as unknown as PointerEvent);
+    expect(blocked).toBe(true);
+  });
+
+  it("leaves a mouse right-click alone", () => {
+    const { controller } = create();
+    let blocked = false;
+    controller["onPointerEvent"]({
+      type: "pointerdown",
+      pointerType: "mouse",
+      pointerId: 2,
+      buttons: 2,
+      button: 2,
+      pressure: 0.5,
+      clientX: 12,
+      clientY: 18,
+      timeStamp: 1,
+      target: null,
+      preventDefault: () => undefined,
+    } as unknown as PointerEvent);
+    controller["onPointerEvent"]({
+      type: "contextmenu",
+      pointerType: "mouse",
+      button: 2,
+      buttons: 2,
+      clientX: 12,
+      clientY: 18,
+      timeStamp: 2,
+      target: null,
+      preventDefault: () => {
+        blocked = true;
+      },
+      stopPropagation: () => undefined,
+    } as unknown as PointerEvent);
+    expect(blocked).toBe(false);
   });
 
   it("keeps temporary tools independent across two views", () => {

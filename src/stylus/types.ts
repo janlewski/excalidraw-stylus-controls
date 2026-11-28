@@ -37,6 +37,7 @@ export type GestureEffect =
   | { type: "temporary-tool-start"; point: Point }
   | { type: "temporary-tool-end" }
   | { type: "temporary-tool-split"; point: Point; discardStroke: boolean }
+  | { type: "erase-tap"; point: Point }
   | { type: "suppress-context-menu" }
   | { type: "debug"; message: string };
 

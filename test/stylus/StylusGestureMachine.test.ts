@@ -116,10 +116,14 @@ describe("StylusGestureMachine", () => {
   });
   it("fires a hold once and never later emits a tap", () => {
     const { machine, scheduler, effects } = create();
-    machine.handle(event("move", 1));
+    machine.handle(event("move", 1, "pen", { x: 10, y: 12 }, 0));
     scheduler.advance(450);
-    machine.handle(event("move", 0));
-    expect(effects).toEqual([{ type: "button-hold", point: { x: 10, y: 12 } }]);
+    expect(effects).toEqual([]);
+    expect(machine.handle(event("move", 0, "pen", { x: 10, y: 12 }, 450))).toEqual([
+      { type: "button-hold", point: { x: 10, y: 12 } },
+    ]);
+    scheduler.advance(500);
+    expect(effects).toEqual([]);
   });
   it("starts eraser on contact, ends it on lift, and consumes release", () => {
     const { machine } = create();
@@ -127,7 +131,10 @@ describe("StylusGestureMachine", () => {
     expect(machine.handle(event("down", 1))).toEqual([
       { type: "temporary-tool-start", point: { x: 10, y: 12 } },
     ]);
-    expect(machine.handle(event("up", 0))).toEqual([{ type: "temporary-tool-end" }]);
+    expect(machine.handle(event("up", 0))).toEqual([
+      { type: "temporary-tool-end" },
+      { type: "erase-tap", point: { x: 10, y: 12 } },
+    ]);
     expect(machine.handle(event("move", 0))).toEqual([]);
   });
   it("recognizes a barrel button first reported with pen contact", () => {
@@ -136,7 +143,10 @@ describe("StylusGestureMachine", () => {
       { type: "temporary-tool-start", point: { x: 10, y: 12 } },
     ]);
     expect(machine.snapshot().barrelButtonHeld).toBe(true);
-    expect(machine.handle(event("up", 0))).toEqual([{ type: "temporary-tool-end" }]);
+    expect(machine.handle(event("up", 0))).toEqual([
+      { type: "temporary-tool-end" },
+      { type: "erase-tap", point: { x: 10, y: 12 } },
+    ]);
     expect(machine.snapshot().barrelButtonHeld).toBe(false);
   });
   it("does not mistake normal pen contact for an Android-mapped barrel bit", () => {
@@ -154,9 +164,15 @@ describe("StylusGestureMachine", () => {
     const { machine } = create();
     machine.handle(event("move", 1));
     expect(machine.handle(event("down", 1)).map((x) => x.type)).toEqual(["temporary-tool-start"]);
-    expect(machine.handle(event("up", 0)).map((x) => x.type)).toEqual(["temporary-tool-end"]);
+    expect(machine.handle(event("up", 0)).map((x) => x.type)).toEqual([
+      "temporary-tool-end",
+      "erase-tap",
+    ]);
     expect(machine.handle(event("down", 1)).map((x) => x.type)).toEqual(["temporary-tool-start"]);
-    expect(machine.handle(event("up", 0)).map((x) => x.type)).toEqual(["temporary-tool-end"]);
+    expect(machine.handle(event("up", 0)).map((x) => x.type)).toEqual([
+      "temporary-tool-end",
+      "erase-tap",
+    ]);
   });
   it("cancels hold when contact arrives first and ignores mouse/touch", () => {
     const { machine, scheduler, effects } = create();
@@ -181,14 +197,22 @@ describe("StylusGestureMachine", () => {
     scheduler.advance(500);
     expect(effects).toEqual([]);
   });
-  it("suppresses context menus only for a recognized eraser interaction", () => {
+  it("suppresses the barrel right-click and the menu that follows an eraser tap", () => {
     const { machine } = create();
     expect(machine.handle(event("contextmenu", 0))).toEqual([]);
-    machine.handle(event("move", 1));
-    machine.handle(event("down", 1));
-    expect(machine.handle(event("contextmenu", 1))).toEqual([{ type: "suppress-context-menu" }]);
-    machine.handle(event("up", 0));
-    expect(machine.handle(event("contextmenu", 0))).toEqual([]);
+    expect(machine.handle({ ...event("contextmenu", 0), button: 2 })).toEqual([
+      { type: "suppress-context-menu" },
+    ]);
+    machine.handle(event("move", 1, "pen", { x: 10, y: 12 }, 1000));
+    machine.handle(event("down", 1, "pen", { x: 10, y: 12 }, 1100));
+    expect(machine.handle(event("contextmenu", 1, "pen", { x: 10, y: 12 }, 1200))).toEqual([
+      { type: "suppress-context-menu" },
+    ]);
+    machine.handle(event("up", 0, "pen", { x: 10, y: 12 }, 1300));
+    expect(machine.handle(event("contextmenu", 0, "pen", { x: 10, y: 12 }, 1400))).toEqual([
+      { type: "suppress-context-menu" },
+    ]);
+    expect(machine.handle(event("contextmenu", 0, "pen", { x: 10, y: 12 }, 2000))).toEqual([]);
   });
   it("ends an active temporary tool and clears timers when disposed", () => {
     const { machine, scheduler, effects } = create();
@@ -227,7 +251,9 @@ describe("StylusGestureMachine", () => {
     machine.handle(event("down", 1));
     machine.temporaryToolDidNotStart();
     expect(machine.snapshot().temporaryToolActive).toBe(false);
-    expect(machine.handle(event("up", 0))).toEqual([]);
+    expect(machine.handle(event("up", 0))).toEqual([
+      { type: "erase-tap", point: { x: 10, y: 12 } },
+    ]);
   });
 
   it("starts the eraser when the bridge barrel is already down at contact", () => {
@@ -280,6 +306,7 @@ describe("StylusGestureMachine", () => {
     expect(machine.snapshot().temporaryToolActive).toBe(true);
     expect(machine.handle(event("up", 0)).map((effect) => effect.type)).toEqual([
       "temporary-tool-end",
+      "erase-tap",
     ]);
     scheduler.advance(500);
     expect(effects).toEqual([]);
@@ -294,12 +321,14 @@ describe("StylusGestureMachine", () => {
     ]);
     expect(machine.handle(event("up", 0)).map((effect) => effect.type)).toEqual([
       "temporary-tool-end",
+      "erase-tap",
     ]);
     expect(machine.handle(event("down", 0)).map((effect) => effect.type)).toEqual([
       "temporary-tool-start",
     ]);
     expect(machine.handle(event("up", 0)).map((effect) => effect.type)).toEqual([
       "temporary-tool-end",
+      "erase-tap",
     ]);
     expect(machine.handleExternalButton({ down: false, pressedAt: 500 })).toEqual([]);
     scheduler.advance(500);
@@ -350,6 +379,7 @@ describe("StylusGestureMachine", () => {
     ]);
     expect(machine.handle(raw("up", 0)).map((effect) => effect.type)).toEqual([
       "temporary-tool-end",
+      "erase-tap",
     ]);
     machine.handle(raw("move", 1));
     expect(machine.handle(raw("down", 1)).map((effect) => effect.type)).toEqual([
@@ -357,9 +387,46 @@ describe("StylusGestureMachine", () => {
     ]);
     expect(machine.handle(raw("up", 0)).map((effect) => effect.type)).toEqual([
       "temporary-tool-end",
+      "erase-tap",
     ]);
     expect(machine.handle(raw("move", 0))).toEqual([]);
     scheduler.advance(500);
     expect(effects).toEqual([]);
+  });
+
+  it("keeps a barrel drag on the eraser without deleting a whole stroke on lift", () => {
+    const { machine } = create();
+    machine.setBarrelSource("bridge");
+    machine.handleExternalButton({ down: true, pressedAt: 0 });
+    machine.handle(event("down", 0, "pen", { x: 4, y: 6 }, 1000));
+    machine.handle(event("move", 0, "pen", { x: 40, y: 6 }, 1100));
+    expect(
+      machine.handle(event("up", 0, "pen", { x: 40, y: 6 }, 1200)).map((effect) => effect.type)
+    ).toEqual(["temporary-tool-end"]);
+  });
+
+  it("erases a tap when the barrel packet arrives after the pen lifts", () => {
+    const { machine, scheduler, effects } = create();
+    machine.setBarrelSource("bridge");
+    machine.handle(event("down", 0, "pen", { x: 4, y: 6 }, 1000));
+    expect(machine.handle(event("up", 0, "pen", { x: 5, y: 6 }, 1080))).toEqual([]);
+    expect(machine.handleExternalButton({ down: true, pressedAt: 1020 })).toEqual([
+      { type: "erase-tap", point: { x: 4, y: 6 } },
+    ]);
+    expect(machine.handleExternalButton({ down: false, pressedAt: 1300 })).toEqual([]);
+    scheduler.advance(500);
+    expect(effects).toEqual([]);
+  });
+
+  it("keeps a hover click after a stroke as a button tap", () => {
+    const { machine, scheduler, effects } = create();
+    machine.setBarrelSource("bridge");
+    machine.handle(event("move", 0, "pen", { x: 8, y: 9 }, 900));
+    machine.handle(event("down", 0, "pen", { x: 8, y: 9 }, 1000));
+    machine.handle(event("up", 0, "pen", { x: 8, y: 9 }, 1100));
+    machine.handleExternalButton({ down: true, pressedAt: 2000 });
+    machine.handleExternalButton({ down: false, pressedAt: 2040 });
+    scheduler.advance(300);
+    expect(effects).toEqual([{ type: "button-tap", point: { x: 8, y: 9 } }]);
   });
 });

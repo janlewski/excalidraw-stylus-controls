@@ -35,7 +35,9 @@ export default class StylusControlsPlugin extends Plugin {
   private readonly bridgeListeners = new Set<() => void>();
 
   async onload(): Promise<void> {
-    this.settings = normalizeSettings((await this.loadData()) ?? {});
+    const stored = ((await this.loadData()) ?? {}) as Partial<StylusControlsSettings>;
+    this.settings = normalizeSettings(stored);
+    if (stored.gestureRevision !== 2) await this.saveData(this.settings);
     this.pairing = new PairingStore(this.app);
     this.bridgeLog = new DebugLogger(
       () => this.settings.debugMode,
@@ -58,6 +60,7 @@ export default class StylusControlsPlugin extends Plugin {
       () => this.effectiveSettings(),
       (action, point, bridge) => {
         if (action === "menu") this.menu.open(point, bridge);
+        else if (action === "context-menu") bridge.openContextMenu(point);
         else if (action === "copy") bridge.copySelectedElements();
         else if (action === "paste") bridge.pasteAt(point);
       },

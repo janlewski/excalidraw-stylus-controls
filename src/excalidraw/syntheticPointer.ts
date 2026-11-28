@@ -1,3 +1,5 @@
+import type { Point } from "../stylus/types";
+
 const synthetic = new WeakSet<Event>();
 
 export const isSynthetic = (event: Event): boolean => synthetic.has(event);
@@ -44,4 +46,18 @@ export function dispatchPointer(
   synthetic.add(event);
   target.dispatchEvent(event);
   return event;
+}
+
+/** Opens Excalidraw's own menu at the pen. The controller ignores this event. */
+export function dispatchContextMenu(target: EventTarget, point: Point): void {
+  const event = new MouseEvent("contextmenu", {
+    bubbles: true,
+    cancelable: true,
+    clientX: point.x,
+    clientY: point.y,
+    button: 2,
+    buttons: 2,
+  });
+  synthetic.add(event);
+  target.dispatchEvent(event);
 }

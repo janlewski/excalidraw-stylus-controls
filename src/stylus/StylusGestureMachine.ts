@@ -14,6 +14,19 @@ interface PendingTap {
   timer: unknown;
 }
 
+interface RecentContact {
+  startedAt: number;
+  endedAt: number;
+  point: Point;
+  moved: boolean;
+  barrel: boolean;
+}
+
+const CONTEXT_MENU_GRACE_MS = 500;
+/** A barrel press this long before the tap still belongs to that tap when the packet is late. */
+const LATE_PRESS_LEAD_MS = 300;
+const CLOCK_SKEW_MS = 20;
+
 /** Pure per-view S Pen gesture policy. It never touches the DOM or Excalidraw. */
 export class StylusGestureMachine {
   private barrelButtonHeld = false;
@@ -23,13 +36,19 @@ export class StylusGestureMachine {
   private holdFired = false;
   private temporaryToolActive = false;
   private pressOrigin: Point | null = null;
-  private holdTimer: unknown | null = null;
   private pendingTap: PendingTap | null = null;
   private activePointerId: number | null = null;
   private barrelSource: BarrelSource = "pointer";
   private contactStartedAt: number | null = null;
+  private contactOrigin: Point | null = null;
+  private contactMoved = false;
+  private barrelContact = false;
+  private barrelAtDown = false;
+  private contextMenuUntil = -1;
+  private pressStartedAt: number | null = null;
   private lastPoint: Point | null = null;
   private releaseAfterContact = false;
+  private recentContact: RecentContact | null = null;
 
   constructor(
     private readonly settings: GestureSettings,
@@ -49,17 +68,20 @@ export class StylusGestureMachine {
     this.lastPoint = { x: event.x, y: event.y };
     const effects: GestureEffect[] = [];
     if (event.kind === "contextmenu") {
-      if (this.temporaryToolActive || (this.barrelButtonHeld && this.penContact))
-        effects.push({ type: "suppress-context-menu" });
+      if (this.shouldSwallowContextMenu(event)) effects.push({ type: "suppress-context-menu" });
       return effects;
     }
 
     if (event.kind === "down") {
       this.contactStartedAt = event.timestamp;
+      this.contactOrigin = { x: event.x, y: event.y };
+      this.contactMoved = false;
+      this.barrelContact = false;
       if (this.barrelSource !== "bridge") {
         if (!this.barrelButtonHeld && this.canRecognizeBarrelOnContact(event))
-          this.startPress(event);
+          this.startPress(event, event.timestamp);
       }
+      this.barrelAtDown = this.barrelButtonHeld;
       this.penContact = true;
       this.activePointerId = event.pointerId;
       if (this.barrelButtonHeld) this.consumeForContact(event, effects);
@@ -68,32 +90,65 @@ export class StylusGestureMachine {
 
     if (event.kind === "up" || event.kind === "cancel") {
       if (this.activePointerId !== null && event.pointerId !== this.activePointerId) return effects;
+      const startedAt = this.contactStartedAt ?? event.timestamp;
+      const point = this.contactOrigin ?? { x: event.x, y: event.y };
+      const moved = this.contactMoved;
+      const barrelContact = this.barrelContact;
+      const barrelAtDown = this.barrelAtDown;
       this.penContact = false;
       this.activePointerId = null;
       this.contactStartedAt = null;
+      this.contactOrigin = null;
+      this.contactMoved = false;
+      this.barrelContact = false;
+      this.barrelAtDown = false;
       if (this.temporaryToolActive) {
         this.temporaryToolActive = false;
         effects.push({ type: "temporary-tool-end" });
+      }
+      const eraseThisContact =
+        barrelAtDown || (barrelContact && this.settings.midStrokePress !== "next-contact");
+      if (
+        event.kind === "up" &&
+        eraseThisContact &&
+        !moved &&
+        this.settings.buttonContactAction === "eraser"
+      ) {
+        effects.push({ type: "erase-tap", point });
+      }
+      if (event.kind === "up" && barrelContact) this.armContextMenu(event.timestamp);
+      if (event.kind === "up") {
+        this.recentContact = {
+          startedAt,
+          endedAt: event.timestamp,
+          point,
+          moved,
+          barrel: barrelContact,
+        };
       }
       if (event.kind === "cancel") this.cancelPress();
       else if (this.barrelSource === "bridge") {
         if (this.releaseAfterContact) {
           this.releaseAfterContact = false;
-          this.releasePress(effects);
+          this.releasePress(effects, event.timestamp);
         }
-      } else if (!this.hoverLatch() && !this.isBarrelHeld(event)) this.releasePress(effects);
+      } else if (!this.hoverLatch() && !this.isBarrelHeld(event))
+        this.releasePress(effects, event.timestamp);
       return effects;
     }
 
-    if (this.penContact) return effects;
+    if (this.penContact) {
+      this.trackContactMovement(event);
+      return effects;
+    }
     if (this.barrelSource === "bridge") {
       if (this.barrelButtonHeld) this.trackHoverMovement(event);
       return effects;
     }
     const heldNow = this.isBarrelHeld(event);
-    if (!this.barrelButtonHeld && heldNow) this.startPress(event);
+    if (!this.barrelButtonHeld && heldNow) this.startPress(event, event.timestamp);
     if (this.barrelButtonHeld && heldNow) this.trackHoverMovement(event);
-    if (this.barrelButtonHeld && !heldNow) this.releasePress(effects);
+    if (this.barrelButtonHeld && !heldNow) this.releasePress(effects, event.timestamp);
     return effects;
   }
 
@@ -102,12 +157,14 @@ export class StylusGestureMachine {
     if (input.down) {
       if (this.barrelButtonHeld) return [];
       if (!this.penContact) {
-        this.startPress(this.pointOf(this.lastPoint));
+        const late = this.claimLateTap(input.pressedAt);
+        if (late) return late;
+        this.startPress(this.pointOf(this.lastPoint), input.pressedAt);
         return [];
       }
       this.barrelButtonHeld = true;
       this.consumed = true;
-      this.cancelTimer("hold");
+      this.barrelContact = this.settings.buttonContactAction === "eraser";
       this.cancelPendingTap();
       if (this.settings.buttonContactAction !== "eraser" || this.temporaryToolActive) return [];
       if (this.settings.midStrokePress === "next-contact") return [];
@@ -129,13 +186,12 @@ export class StylusGestureMachine {
       return [];
     }
     const effects: GestureEffect[] = [];
-    this.releasePress(effects);
+    this.releasePress(effects, input.pressedAt);
     return effects;
   }
 
   dispose(): GestureEffect[] {
     const effects: GestureEffect[] = [];
-    this.cancelTimer("hold");
     this.cancelPendingTap();
     if (this.temporaryToolActive) effects.push({ type: "temporary-tool-end" });
     this.temporaryToolActive = false;
@@ -160,27 +216,14 @@ export class StylusGestureMachine {
     this.temporaryToolActive = false;
   }
 
-  private startPress(origin: NormalizedStylusEvent | Point): void {
+  private startPress(origin: NormalizedStylusEvent | Point, at: number): void {
     const point = "kind" in origin ? { x: origin.x, y: origin.y } : origin;
     this.barrelButtonHeld = true;
     this.consumed = false;
     this.moved = false;
     this.holdFired = false;
     this.pressOrigin = point;
-    this.holdTimer = this.scheduler.setTimeout(() => {
-      if (
-        !this.barrelButtonHeld ||
-        this.penContact ||
-        this.moved ||
-        this.consumed ||
-        !this.pressOrigin
-      )
-        return;
-      this.holdFired = true;
-      this.consumed = true;
-      this.cancelPendingTap();
-      this.onEffect?.({ type: "button-hold", point: this.pressOrigin });
-    }, this.settings.longPressMs);
+    this.pressStartedAt = at;
   }
 
   /** Controller registers this so scheduler callbacks retain pure semantic output. */
@@ -189,19 +232,23 @@ export class StylusGestureMachine {
     this.onEffect = sink;
   }
 
+  private trackContactMovement(event: NormalizedStylusEvent): void {
+    if (!this.contactOrigin || this.contactMoved) return;
+    const dx = event.x - this.contactOrigin.x;
+    const dy = event.y - this.contactOrigin.y;
+    if (Math.hypot(dx, dy) > this.settings.movementThresholdPx) this.contactMoved = true;
+  }
+
   private trackHoverMovement(event: NormalizedStylusEvent): void {
     if (!this.pressOrigin || this.moved) return;
     const dx = event.x - this.pressOrigin.x;
     const dy = event.y - this.pressOrigin.y;
-    if (Math.hypot(dx, dy) > this.settings.movementThresholdPx) {
-      this.moved = true;
-      this.cancelTimer("hold");
-    }
+    if (Math.hypot(dx, dy) > this.settings.movementThresholdPx) this.moved = true;
   }
 
   private consumeForContact(event: NormalizedStylusEvent, effects: GestureEffect[]): void {
     this.consumed = true;
-    this.cancelTimer("hold");
+    this.barrelContact = this.settings.buttonContactAction === "eraser";
     this.cancelPendingTap();
     if (this.settings.buttonContactAction === "eraser" && !this.temporaryToolActive) {
       this.temporaryToolActive = true;
@@ -209,10 +256,17 @@ export class StylusGestureMachine {
     }
   }
 
-  private releasePress(effects: GestureEffect[]): void {
-    this.cancelTimer("hold");
+  private releasePress(effects: GestureEffect[], at: number): void {
+    const elapsed = this.pressStartedAt === null ? 0 : at - this.pressStartedAt;
+    const heldLong = elapsed >= this.settings.longPressMs;
     this.barrelButtonHeld = false;
-    if (!this.consumed && !this.moved && !this.holdFired && this.pressOrigin) {
+    this.pressStartedAt = null;
+    if (!this.consumed && !this.moved && !this.holdFired && this.pressOrigin && heldLong) {
+      this.holdFired = true;
+      this.consumed = true;
+      this.cancelPendingTap();
+      effects.push({ type: "button-hold", point: this.pressOrigin });
+    } else if (!this.consumed && !this.moved && !this.holdFired && this.pressOrigin) {
       if (this.pendingTap) {
         this.cancelPendingTap();
         effects.push({ type: "button-double-tap", point: this.pressOrigin });
@@ -229,22 +283,52 @@ export class StylusGestureMachine {
   }
 
   private cancelPress(): void {
-    this.cancelTimer("hold");
     this.barrelButtonHeld = false;
     this.penContact = false;
     this.consumed = false;
     this.moved = false;
     this.holdFired = false;
     this.pressOrigin = null;
+    this.pressStartedAt = null;
+    this.contactOrigin = null;
+    this.contactMoved = false;
+    this.barrelContact = false;
+    this.barrelAtDown = false;
+    this.recentContact = null;
     this.activePointerId = null;
     this.releaseAfterContact = false;
   }
 
-  private cancelTimer(which: "hold"): void {
-    if (which === "hold" && this.holdTimer !== null) {
-      this.scheduler.clearTimeout(this.holdTimer);
-      this.holdTimer = null;
-    }
+  /**
+   * A barrel packet can arrive after the tap it belongs to. Claim it only when
+   * the press time overlaps that contact, so a later hover click still opens
+   * the menu.
+   */
+  private claimLateTap(pressedAt: number): GestureEffect[] | null {
+    const recent = this.recentContact;
+    if (!recent || recent.barrel) return null;
+    if (pressedAt < recent.startedAt - LATE_PRESS_LEAD_MS) return null;
+    if (pressedAt > recent.endedAt + CLOCK_SKEW_MS) return null;
+    recent.barrel = true;
+    this.barrelButtonHeld = true;
+    this.consumed = true;
+    this.pressOrigin = recent.point;
+    this.pressStartedAt = pressedAt;
+    this.cancelPendingTap();
+    this.armContextMenu(recent.endedAt);
+    if (recent.moved || this.settings.buttonContactAction !== "eraser") return [];
+    return [{ type: "erase-tap", point: recent.point }];
+  }
+
+  private shouldSwallowContextMenu(event: NormalizedStylusEvent): boolean {
+    if (event.button === 2) return true;
+    if (this.temporaryToolActive || this.barrelContact) return true;
+    if (this.barrelButtonHeld && this.penContact) return true;
+    return event.timestamp <= this.contextMenuUntil;
+  }
+
+  private armContextMenu(at: number): void {
+    this.contextMenuUntil = Math.max(this.contextMenuUntil, at + CONTEXT_MENU_GRACE_MS);
   }
 
   private cancelPendingTap(): void {

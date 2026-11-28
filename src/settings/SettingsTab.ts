@@ -14,10 +14,11 @@ import {
 } from "./settings";
 
 const actions: Record<StylusAction, string> = {
-  menu: "Open menu",
-  copy: "Copy",
-  paste: "Paste",
-  none: "Do nothing",
+  "menu": "Open menu",
+  "context-menu": "Right-click menu",
+  "copy": "Copy",
+  "paste": "Paste",
+  "none": "Do nothing",
 };
 
 const testProfiles: Record<
@@ -71,14 +72,16 @@ export class SettingsTab extends PluginSettingTab {
     const diagnostic = isDiagnosticBuild(this.plugin.manifest.version);
     if (diagnostic) this.renderDiagnostics();
     containerEl.createEl("p", {
-      text: "Requires the Excalidraw community plugin. Copy and paste await a compatible Excalidraw integration and are currently unavailable.",
+      text: "Hold the side button and tap a stroke to erase it. Drag with the button held to erase along the pen. Hover and double-tap the button for Excalidraw's right-click menu. Copy and paste are not available yet.",
     });
     this.action("Tap", "buttonTapAction");
     this.action("Double tap", "buttonDoubleTapAction");
     this.action("Hold", "buttonHoldAction");
     new Setting(containerEl)
       .setName("Button + pen contact")
-      .setDesc("Temporary tool while the side button is held during pen contact.")
+      .setDesc(
+        "Hold the side button, then tap a stroke to erase the whole stroke, or drag to erase along the pen. This does not open the right-click menu."
+      )
       .addDropdown((dropdown) =>
         dropdown
           .addOption("eraser", "Temporary eraser")
